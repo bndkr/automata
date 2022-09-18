@@ -6,8 +6,7 @@ project(${project_name})
 set(imgui_path ${CMAKE_CURRENT_SOURCE_DIR}/src/imgui CACHE PATH "Path to the dear ImGui header files")
 include_directories(${imgui_path})
 find_package(D3D11 MODULE) # sets D3D11_lib
-set(srcs
-  src/main.cpp
+set(imgui_srcs
   src/imgui/imconfig.h
   src/imgui/imgui_demo.cpp
   src/imgui/imgui_draw.cpp
@@ -21,5 +20,10 @@ set(srcs
   src/imgui/imgui_impl_dx11.cpp
   src/imgui/imgui_impl_dx11.h
 )
-add_executable(${project_name} ${srcs})
+set(main_srcs
+  src/main.cpp
+)
+source_group(imgui FILES ${imgui_srcs})
+source_group("" FILES ${main_srcs})
+add_executable(${project_name} ${imgui_srcs} ${main_srcs})
 target_link_libraries(${project_name} ${D3D11_lib})
