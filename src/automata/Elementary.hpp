@@ -6,11 +6,9 @@
 
 class Elementary {
 public:
-  Elementary(uint64_t height, uint64_t width);
+  Elementary(uint64_t height, uint64_t width, ID3D11Device* pDevice , ID3D11DeviceContext* pDeviceContext);
 
   void showAutomataWindow(ID3D11Device *pDevice);
-
-  void displayGrid(bool randInit, bool wrap, ID3D11Device* pDevice, ID3D11ShaderResourceView* view);
 
   void updateGrid(bool randInit, bool wrap);
 
@@ -22,9 +20,14 @@ private:
   uint64_t m_height;
   uint64_t m_width;
   Grid m_grid;
+  uint64_t m_upsampledSize;
   std::vector<uint8_t> m_upsampledGrid;
   uint32_t m_scale;
   int m_rule;
+  ID3D11ShaderResourceView* m_view;
+  ID3D11Texture2D* m_texture;
+  ID3D11Device* m_pDevice;
+  ID3D11DeviceContext* m_pDeviceContext;
 };
 
 #endif

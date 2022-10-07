@@ -87,7 +87,7 @@ int main(int, char **) {
     // if (show_demo_window)
     //   ImGui::ShowDemoWindow(&show_demo_window);
 
-    static Elementary elementary(200, 200);
+    static Elementary elementary(200, 200, g_pd3dDevice, g_pd3dDeviceContext);
      
     ImGui::Begin("Cellular Automata");
     ImGui::BeginTabBar("groups");

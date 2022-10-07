@@ -6,18 +6,23 @@
 #include <d3d11.h>
 #include <random>
 
-Elementary::Elementary(uint64_t height, uint64_t width)
+Elementary::Elementary(uint64_t height, uint64_t width, ID3D11Device* pDevice, ID3D11DeviceContext* pDeviceContext)
     : m_height(height), m_width(width), m_grid(width, height),
-      m_upsampledGrid(), m_scale(3), m_rule(30) 
+      m_upsampledGrid(), m_scale(1), m_rule(44), m_pDevice(pDevice), m_pDeviceContext(pDeviceContext), m_view(NULL), m_texture(NULL)
 {
-  uint64_t upsampledSize = 4 * m_width * m_scale * m_height * m_scale;
-  m_upsampledGrid.reserve(upsampledSize);
-  for (uint64_t i = 0; i < upsampledSize; i++)
+  m_upsampledSize = 4 * m_width * m_scale * m_height * m_scale;
+  m_upsampledGrid.reserve(m_upsampledSize);
+  for (uint64_t i = 0; i < m_upsampledSize; i++)
   {
-    m_upsampledGrid.push_back(0);
+    m_upsampledGrid.push_back(0); // TODO: change this to std equivalent of a boost::shared_array
   }
-  updateGrid(true, true);
+
+  updateGrid(false, false);
   upsampleGrid();
+
+  automata::LoadTextureFromData(m_upsampledGrid.data(), &m_view, &m_texture, pDevice,
+      m_grid.getWidth() * m_scale,
+      m_grid.getHeight() * m_scale);
 }
 
 void Elementary::showAutomataWindow(ID3D11Device *pDevice)
@@ -42,20 +47,16 @@ void Elementary::showAutomataWindow(ID3D11Device *pDevice)
     updateGrid(randomInit, wrap);
     upsampleGrid();
   }
-  ID3D11ShaderResourceView* view;
-  
-  automata::LoadTextureFromData(m_upsampledGrid.data(), &view, pDevice,
-    m_grid.getWidth() * m_scale,
-    m_grid.getHeight() * m_scale);
-  ImGui::Image((void*)view, ImVec2(m_grid.getWidth() * m_scale,
+  D3D11_MAPPED_SUBRESOURCE resMap;
+  ZeroMemory(&resMap, sizeof(resMap));
+  m_pDeviceContext->Map(m_texture, 0, D3D11_MAP_WRITE_DISCARD, 0,  &resMap);
+  std::memcpy(resMap.pData, m_upsampledGrid.data(), m_upsampledSize);
+  m_pDeviceContext->Unmap(m_texture, 0);
+
+  ImGui::Image((void*)m_view, ImVec2(m_grid.getWidth() * m_scale,
     m_grid.getHeight() * m_scale));
   ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
               1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-}
-
-void Elementary::displayGrid(bool randInit, bool wrap, ID3D11Device* pDevice, ID3D11ShaderResourceView* view)
-{
-  
 }
 
 void Elementary::updateGrid(bool randInit, bool wrap)
