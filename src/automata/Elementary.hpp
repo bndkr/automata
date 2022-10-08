@@ -4,13 +4,16 @@
 #include "Grid.hpp"
 #include <d3d11.h>
 
-class Elementary {
+class Elementary
+{
 public:
-  Elementary(uint64_t height, uint64_t width, ID3D11Device* pDevice , ID3D11DeviceContext* pDeviceContext);
+  Elementary(uint64_t height, uint64_t width, ID3D11Device *pDevice);
 
-  void showAutomataWindow(ID3D11Device *pDevice);
+  void showAutomataWindow();
 
   void updateGrid(bool randInit, bool wrap);
+
+  void updateTexture(bool wrap, bool rand);
 
   void upsampleGrid();
 
@@ -24,10 +27,9 @@ private:
   std::vector<uint8_t> m_upsampledGrid;
   uint32_t m_scale;
   int m_rule;
-  ID3D11ShaderResourceView* m_view;
-  ID3D11Texture2D* m_texture;
-  ID3D11Device* m_pDevice;
-  ID3D11DeviceContext* m_pDeviceContext;
+  ID3D11ShaderResourceView *m_view;
+  ID3D11Texture2D *m_texture;
+  ID3D11Device *m_pDevice;
 };
 
 #endif

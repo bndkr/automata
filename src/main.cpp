@@ -18,7 +18,8 @@ void CreateRenderTarget();
 void CleanupRenderTarget();
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-int main(int, char **) {
+int main(int, char **)
+{
   // Create application window
   // ImGui_ImplWin32_EnableDpiAwareness();
   WNDCLASSEX wc = {sizeof(WNDCLASSEX),    CS_CLASSDC, WndProc, 0L,   0L,
@@ -26,11 +27,12 @@ int main(int, char **) {
                    _T("ImGui Example"),   NULL};
   ::RegisterClassEx(&wc);
   HWND hwnd = ::CreateWindow(
-      wc.lpszClassName, _T("Dear ImGui DirectX11 Example"), WS_OVERLAPPEDWINDOW,
-      100, 100, 1280, 800, NULL, NULL, wc.hInstance, NULL);
+    wc.lpszClassName, _T("Dear ImGui DirectX11 Example"), WS_OVERLAPPEDWINDOW,
+    100, 100, 1280, 800, NULL, NULL, wc.hInstance, NULL);
 
   // Initialize Direct3D
-  if (!CreateDeviceD3D(hwnd)) {
+  if (!CreateDeviceD3D(hwnd))
+  {
     CleanupDeviceD3D();
     ::UnregisterClass(wc.lpszClassName, wc.hInstance);
     return 1;
@@ -65,12 +67,14 @@ int main(int, char **) {
   ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
   bool done = false;
-  while (!done) {
+  while (!done)
+  {
     // Poll and handle messages (inputs, window resize, etc.)
     // See the WndProc() function below for our to dispatch events to the Win32
     // backend.
     MSG msg;
-    while (::PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE)) {
+    while (::PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE))
+    {
       ::TranslateMessage(&msg);
       ::DispatchMessage(&msg);
       if (msg.message == WM_QUIT)
@@ -87,16 +91,15 @@ int main(int, char **) {
     // if (show_demo_window)
     //   ImGui::ShowDemoWindow(&show_demo_window);
 
-    static Elementary elementary(200, 200, g_pd3dDevice, g_pd3dDeviceContext);
-     
+    static Elementary elementary(100, 200, g_pd3dDevice);
+
     ImGui::Begin("Cellular Automata");
     ImGui::BeginTabBar("groups");
     if (ImGui::BeginTabItem("Elementary Automata"))
     {
-      elementary.showAutomataWindow(g_pd3dDevice);
+      elementary.showAutomataWindow();
     }
     ImGui::EndTabItem();
-
 
     ImGui::EndTabBar();
     ImGui::End();
@@ -104,8 +107,8 @@ int main(int, char **) {
     // Rendering
     ImGui::Render();
     const float clear_color_with_alpha[4] = {
-        clear_color.x * clear_color.w, clear_color.y * clear_color.w,
-        clear_color.z * clear_color.w, clear_color.w};
+      clear_color.x * clear_color.w, clear_color.y * clear_color.w,
+      clear_color.z * clear_color.w, clear_color.w};
     g_pd3dDeviceContext->OMSetRenderTargets(1, &g_mainRenderTargetView, NULL);
     g_pd3dDeviceContext->ClearRenderTargetView(g_mainRenderTargetView,
                                                clear_color_with_alpha);
@@ -129,7 +132,8 @@ int main(int, char **) {
 
 // Helper functions
 
-bool CreateDeviceD3D(HWND hWnd) {
+bool CreateDeviceD3D(HWND hWnd)
+{
   // Setup swap chain
   DXGI_SWAP_CHAIN_DESC sd;
   ZeroMemory(&sd, sizeof(sd));
@@ -151,36 +155,41 @@ bool CreateDeviceD3D(HWND hWnd) {
   // createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
   D3D_FEATURE_LEVEL featureLevel;
   const D3D_FEATURE_LEVEL featureLevelArray[2] = {
-      D3D_FEATURE_LEVEL_11_0,
-      D3D_FEATURE_LEVEL_10_0,
+    D3D_FEATURE_LEVEL_11_0,
+    D3D_FEATURE_LEVEL_10_0,
   };
   if (D3D11CreateDeviceAndSwapChain(
-          NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, createDeviceFlags,
-          featureLevelArray, 2, D3D11_SDK_VERSION, &sd, &g_pSwapChain,
-          &g_pd3dDevice, &featureLevel, &g_pd3dDeviceContext) != S_OK)
+        NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, createDeviceFlags,
+        featureLevelArray, 2, D3D11_SDK_VERSION, &sd, &g_pSwapChain,
+        &g_pd3dDevice, &featureLevel, &g_pd3dDeviceContext) != S_OK)
     return false;
 
   CreateRenderTarget();
   return true;
 }
 
-void CleanupDeviceD3D() {
+void CleanupDeviceD3D()
+{
   CleanupRenderTarget();
-  if (g_pSwapChain) {
+  if (g_pSwapChain)
+  {
     g_pSwapChain->Release();
     g_pSwapChain = NULL;
   }
-  if (g_pd3dDeviceContext) {
+  if (g_pd3dDeviceContext)
+  {
     g_pd3dDeviceContext->Release();
     g_pd3dDeviceContext = NULL;
   }
-  if (g_pd3dDevice) {
+  if (g_pd3dDevice)
+  {
     g_pd3dDevice->Release();
     g_pd3dDevice = NULL;
   }
 }
 
-void CreateRenderTarget() {
+void CreateRenderTarget()
+{
   ID3D11Texture2D *pBackBuffer;
   g_pSwapChain->GetBuffer(0, IID_PPV_ARGS(&pBackBuffer));
   g_pd3dDevice->CreateRenderTargetView(pBackBuffer, NULL,
@@ -188,8 +197,10 @@ void CreateRenderTarget() {
   pBackBuffer->Release();
 }
 
-void CleanupRenderTarget() {
-  if (g_mainRenderTargetView) {
+void CleanupRenderTarget()
+{
+  if (g_mainRenderTargetView)
+  {
     g_mainRenderTargetView->Release();
     g_mainRenderTargetView = NULL;
   }
@@ -210,13 +221,16 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd,
 // your main application, or clear/overwrite your copy of the keyboard data.
 // Generally you may always pass all inputs to dear imgui, and hide them from
 // your application based on those two flags.
-LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
   if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
     return true;
 
-  switch (msg) {
+  switch (msg)
+  {
   case WM_SIZE:
-    if (g_pd3dDevice != NULL && wParam != SIZE_MINIMIZED) {
+    if (g_pd3dDevice != NULL && wParam != SIZE_MINIMIZED)
+    {
       CleanupRenderTarget();
       g_pSwapChain->ResizeBuffers(0, (UINT)LOWORD(lParam), (UINT)HIWORD(lParam),
                                   DXGI_FORMAT_UNKNOWN, 0);

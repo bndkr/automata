@@ -20,7 +20,7 @@ namespace automata
         D3D11_SUBRESOURCE_DATA subResource;
         subResource.pSysMem = image_data;
         subResource.SysMemPitch = desc.Width * 4;
-        subResource.SysMemSlicePitch = 0;
+        subResource.SysMemSlicePitch = 1;
         pd3dDevice->CreateTexture2D(&desc, &subResource, out_texture);
 
         // Create texture view
