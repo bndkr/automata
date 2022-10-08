@@ -125,13 +125,13 @@ void Elementary::upsampleGrid()
     for (uint64_t j = 0; j < newWidth; j++)
     {
       m_upsampledGrid[(j + (i * newWidth)) * 4] =
-        m_grid.getArray()[((j / m_scale) + (i / m_scale) * m_width) * 4];
+        m_grid.getData()[((j / m_scale) + (i / m_scale) * m_width) * 4];
       m_upsampledGrid[(j + (i * newWidth)) * 4 + 1] =
-        m_grid.getArray()[((j / m_scale) + (i / m_scale) * m_width) * 4 + 1];
+        m_grid.getData()[((j / m_scale) + (i / m_scale) * m_width) * 4 + 1];
       m_upsampledGrid[(j + (i * newWidth)) * 4 + 2] =
-        m_grid.getArray()[((j / m_scale) + (i / m_scale) * m_width) * 4 + 2];
+        m_grid.getData()[((j / m_scale) + (i / m_scale) * m_width) * 4 + 2];
       m_upsampledGrid[(j + (i * newWidth)) * 4 + 3] =
-        m_grid.getArray()[((j / m_scale) + (i / m_scale) * m_width) * 4 + 3];
+        m_grid.getData()[((j / m_scale) + (i / m_scale) * m_width) * 4 + 3];
     }
   }
 }

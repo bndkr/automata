@@ -1,10 +1,11 @@
 # Format Style Options - Created with Clang Power Tools
 ---
+AlignTrailingComments: false
 BasedOnStyle: Microsoft
 ColumnLimit: 80
-ConstructorInitializerAllOnOneLineOrOnePerLine: true
 ConstructorInitializerIndentWidth : 2
 ContinuationIndentWidth: 2
 IndentWidth: 2
+PointerAlignment: Left
 TabWidth: 2
 ...

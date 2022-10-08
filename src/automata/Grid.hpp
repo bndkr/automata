@@ -2,9 +2,47 @@
 #define AUTOMATA_GRID
 
 #include <cstdint>
+#include <memory>
+#include <stdexcept>
 #include <vector>
 
-struct Color {
+struct Buffer
+{
+  uint8_t* ptr = NULL;
+  uint64_t len = 0;
+
+  Buffer(uint64_t size) : len(size)
+  {
+    ptr = new uint8_t[size];
+  }
+  ~Buffer()
+  {
+    delete[] ptr;
+  }
+  uint8_t get(uint64_t index)
+  {
+    if (index < len)
+      return *(ptr + index);
+    else
+      throw std::runtime_error("buffer access out of bounds");
+  }
+
+  void set(uint64_t index, uint8_t value)
+  {
+    if (index < len)
+      *(ptr + index) = value;
+    else
+      throw std::runtime_error("buffer access out of bounds");
+  }
+
+  void fill(uint8_t value)
+  {
+    std::memset(ptr, value, len);
+  }
+};
+
+struct Color
+{
   uint8_t red;
   uint8_t green;
   uint8_t blue;
@@ -18,23 +56,28 @@ struct CellChange
   Color color;
 };
 
-class Grid {
+class Grid
+{
 public:
-  Grid() : m_data(), m_changes(), m_width(0), m_height(0) {}
-
-  Grid(uint64_t width, uint64_t height) : m_width(width), m_height(height) {
-    // fill grid with empty cells
-    uint64_t size = width * height * 4;
-    m_data.reserve(size);
-    for (uint64_t i = 0; i < size; i++) {
-      m_data.push_back(0);
-    }
+  Grid(uint64_t width, uint64_t height)
+    : m_width(width), m_height(height), m_data(width * height * 4)
+  {
+    m_data.fill(0);
   }
 
-  uint8_t *getData() { return m_data.data(); }
+  uint8_t* getData()
+  {
+    return m_data.ptr;
+  }
 
-  uint64_t getHeight() { return m_height; }
-  uint64_t getWidth() { return m_width; }
+  uint64_t getHeight()
+  {
+    return m_height;
+  }
+  uint64_t getWidth()
+  {
+    return m_width;
+  }
 
   Color getCell(uint64_t row, uint64_t col);
 
@@ -42,12 +85,15 @@ public:
 
   bool checkCell(uint64_t row, uint64_t col);
 
-  void fill(Color color) {
-    for (uint64_t i = 0; i < m_data.size(); i += 4) {
-      m_data[i] = color.red;
-      m_data[i + 1] = color.green;
-      m_data[i + 2] = color.blue;
-      m_data[i + 3] = color.alpha;
+  void fill(Color color) // needs to be tested
+  {
+    uint64_t c = (uint64_t)color.red + (uint64_t)((uint64_t)color.green << 8) +
+                 (uint64_t)((uint64_t)color.blue << 16) +
+                 (uint64_t)((uint64_t)color.alpha << 24);
+
+    for (uint64_t i = 0; i < m_data.len; i += 4)
+    {
+      std::memcpy(m_data.ptr + i, &c, 4);
     }
   }
 
@@ -55,10 +101,8 @@ public:
 
   void applyChanges();
 
-  std::vector<uint8_t> &getArray() { return m_data; }
-
 private:
-  std::vector<uint8_t> m_data; // for reading
+  Buffer m_data;
   std::vector<CellChange> m_changes; // for writing
   uint64_t m_width;
   uint64_t m_height;
