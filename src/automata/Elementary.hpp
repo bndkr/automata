@@ -7,7 +7,7 @@
 class Elementary
 {
 public:
-  Elementary(uint64_t height, uint64_t width, ID3D11Device *pDevice);
+  Elementary(uint64_t height, uint64_t width, uint32_t scale, ID3D11Device *pDevice);
 
   void showAutomataWindow();
 
@@ -22,14 +22,14 @@ public:
 private:
   uint64_t m_height;
   uint64_t m_width;
-  Grid m_grid;
-  uint64_t m_upsampledSize;
-  Grid m_upsampledGrid;
-  uint32_t m_scale;
   int m_rule;
+  Grid m_grid;
+  Grid m_upsampledGrid;
+  uint64_t m_upsampledSize;
+  uint32_t m_scale;
+  ID3D11Device *m_pDevice;
   ID3D11ShaderResourceView *m_view;
   ID3D11Texture2D *m_texture;
-  ID3D11Device *m_pDevice;
 };
 
 #endif

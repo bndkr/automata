@@ -9,7 +9,7 @@ Color Grid::getCell(uint64_t row, uint64_t col)
 
 bool Grid::setCell(uint64_t row, uint64_t col, Color color)
 {
-  if (row >= m_height || col >= m_width || !m_data.ptr)
+  if (row >= m_height || col >= m_width || !m_data.arr.data())
   {
     return false;
   }
