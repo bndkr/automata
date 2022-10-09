@@ -19,9 +19,7 @@ Elementary::Elementary(uint64_t height, uint64_t width, uint32_t scale,
     m_view(NULL),
     m_texture(NULL)
 {
-  updateGrid(true, true);
-  upsampleGrid();
-
+  updateTexture(true, true);
   automata::LoadTextureFromData(m_upsampledGrid.getData(), &m_view, &m_texture,
                                 pDevice, m_width * m_scale, m_height * m_scale);
 }
@@ -99,40 +97,19 @@ void Elementary::updateGrid(bool randInit, bool wrap)
 void Elementary::updateTexture(bool wrap, bool rand)
 {
   updateGrid(rand, wrap);
-  upsampleGrid();
-
-  m_view->Release();
-  m_texture->Release();
+  upsampleGrid(m_grid, m_upsampledGrid, m_scale);
+  if (m_view)
+  {
+    m_view->Release();
+  }
+  if (m_texture)
+  {
+    m_texture->Release();
+  }
 
   automata::LoadTextureFromData(m_upsampledGrid.getData(), &m_view, &m_texture,
                                 m_pDevice, m_width * m_scale,
                                 m_height * m_scale);
-}
-
-// TODO: fix this
-void Elementary::upsampleGrid()
-{
-  uint32_t stride = m_width * 4 * m_scale;
-  for (uint64_t h = 0; h < m_height; h++)
-  {
-    for (uint64_t w = 0; w < m_width; w++)
-    {
-      Color color = m_grid.getCell(h, w);
-      uint32_t c = color.red | ((uint32_t)color.green << 8) |
-                   ((uint32_t)color.blue << 16) | ((uint32_t)color.alpha << 24);
-
-      uint32_t offset = (h * stride * m_scale) + (w * m_scale * 4);
-      for (uint64_t sy = 0; sy < m_scale; sy++)
-      {
-        for (uint64_t sx = 0; sx < m_scale; sx++)
-        {
-          std::memcpy(m_upsampledGrid.m_data.arr.data() + offset +
-                        (stride * sy) + (sx * 4),
-                      &c, 4);
-        }
-      }
-    }
-  }
 }
 
 bool Elementary::checkCell(uint32_t row, uint32_t col, bool wrap)

@@ -41,3 +41,31 @@ void Grid::applyChanges()
   }
   m_changes.clear();
 }
+
+void upsampleGrid(Grid& unit, Grid& scaled, uint32_t scale)
+{
+  uint32_t unitWidth = unit.getWidth();
+  uint32_t unitHeight = unit.getHeight();
+  uint32_t stride = unit.getWidth() * 4 * scale;
+
+  for (uint64_t h = 0; h < unitHeight; h++)
+  {
+    for (uint64_t w = 0; w < unitWidth; w++)
+    {
+      Color color = unit.getCell(h, w);
+      uint32_t c = color.red | ((uint32_t)color.green << 8) |
+                   ((uint32_t)color.blue << 16) | ((uint32_t)color.alpha << 24);
+
+      uint32_t offset = (h * stride * scale) + (w * scale * 4);
+      for (uint64_t sy = 0; sy < scale; sy++)
+      {
+        for (uint64_t sx = 0; sx < scale; sx++)
+        {
+          std::memcpy(scaled.getData() + offset +
+                        (stride * sy) + (sx * 4),
+                      &c, 4);
+        }
+      }
+    }
+  }
+}

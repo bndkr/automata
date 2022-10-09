@@ -111,4 +111,6 @@ private:
   uint64_t m_height;
 };
 
+void upsampleGrid(Grid& unit, Grid& scaled, uint32_t scale);
+
 #endif

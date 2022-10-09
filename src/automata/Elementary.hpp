@@ -15,8 +15,6 @@ public:
 
   void updateTexture(bool wrap, bool rand);
 
-  void upsampleGrid();
-
   bool checkCell(uint32_t row, uint32_t col, bool wrap);
 
 private:
