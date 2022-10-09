@@ -6,12 +6,13 @@
 #include <d3d11.h>
 #include <random>
 
-Elementary::Elementary(uint64_t height, uint64_t width, uint32_t scale, ID3D11Device* pDevice)
+Elementary::Elementary(uint64_t height, uint64_t width, uint32_t scale,
+                       ID3D11Device* pDevice)
   : m_height(height),
     m_width(width),
     m_rule(30),
     m_grid(width, height),
-    m_upsampledGrid(width * scale, height * scale), // this isn't being initialized right?
+    m_upsampledGrid(width * scale, height * scale),
     m_upsampledSize(4 * m_width * m_scale * m_height * m_scale),
     m_scale(scale),
     m_pDevice(pDevice),
@@ -120,13 +121,13 @@ void Elementary::upsampleGrid()
       uint32_t c = color.red | ((uint32_t)color.green << 8) |
                    ((uint32_t)color.blue << 16) | ((uint32_t)color.alpha << 24);
 
-      uint32_t offset = (h * stride) + (w * m_scale * 4);
+      uint32_t offset = (h * stride * m_scale) + (w * m_scale * 4);
       for (uint64_t sy = 0; sy < m_scale; sy++)
       {
         for (uint64_t sx = 0; sx < m_scale; sx++)
         {
-          std::memcpy(m_upsampledGrid.m_data.arr.data() + offset + (stride * sy) +
-                        (sx * 4),
+          std::memcpy(m_upsampledGrid.m_data.arr.data() + offset +
+                        (stride * sy) + (sx * 4),
                       &c, 4);
         }
       }
