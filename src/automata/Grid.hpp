@@ -8,8 +8,8 @@
 
 struct Buffer
 {
-  uint8_t* ptr = NULL;
-  uint64_t len = 0;
+  uint8_t* ptr;
+  uint64_t len;
 
   Buffer(uint64_t size) : len(size)
   {
@@ -17,7 +17,7 @@ struct Buffer
   }
   ~Buffer()
   {
-    delete[] ptr;
+    // TODO: this needs to free memory, but delete[] craps out
   }
   uint8_t get(uint64_t index)
   {
@@ -101,8 +101,8 @@ public:
 
   void applyChanges();
 
-private:
   Buffer m_data;
+private:
   std::vector<CellChange> m_changes; // for writing
   uint64_t m_width;
   uint64_t m_height;

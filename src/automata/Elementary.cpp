@@ -6,28 +6,22 @@
 #include <d3d11.h>
 #include <random>
 
-Elementary::Elementary(uint64_t height, uint64_t width, ID3D11Device *pDevice)
+Elementary::Elementary(uint64_t height, uint64_t width, ID3D11Device* pDevice)
   : m_height(height),
     m_width(width),
     m_grid(width, height),
-    m_upsampledGrid(),
-    m_scale(5),
+    m_scale(2),
+    m_upsampledGrid(m_scale * width, m_scale * height), // this isn't being initialized right?
+    m_upsampledSize(4 * m_width * m_scale * m_height * m_scale),
     m_rule(30),
     m_pDevice(pDevice),
     m_view(NULL),
     m_texture(NULL)
 {
-  m_upsampledSize = 4 * m_width * m_scale * m_height * m_scale;
-  m_upsampledGrid.reserve(m_upsampledSize);
-  for (uint64_t i = 0; i < m_upsampledSize; i++)
-  {
-    m_upsampledGrid.push_back(0);
-  }
-
   updateGrid(true, true);
   upsampleGrid();
 
-  automata::LoadTextureFromData(m_upsampledGrid.data(), &m_view, &m_texture,
+  automata::LoadTextureFromData(m_upsampledGrid.getData(), &m_view, &m_texture,
                                 pDevice, m_width * m_scale, m_height * m_scale);
 }
 
@@ -51,8 +45,8 @@ void Elementary::showAutomataWindow()
     updateTexture(wrap, randomInit);
   }
 
-  ImGui::Image((void *)m_view, ImVec2(m_grid.getWidth() * m_scale,
-                                      m_grid.getHeight() * m_scale));
+  ImGui::Image((void*)m_view, ImVec2(m_grid.getWidth() * m_scale,
+                                     m_grid.getHeight() * m_scale));
   ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
               1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 }
@@ -109,7 +103,7 @@ void Elementary::updateTexture(bool wrap, bool rand)
   m_view->Release();
   m_texture->Release();
 
-  automata::LoadTextureFromData(m_upsampledGrid.data(), &m_view, &m_texture,
+  automata::LoadTextureFromData(m_upsampledGrid.getData(), &m_view, &m_texture,
                                 m_pDevice, m_width * m_scale,
                                 m_height * m_scale);
 }
@@ -117,21 +111,24 @@ void Elementary::updateTexture(bool wrap, bool rand)
 // TODO: optimize this
 void Elementary::upsampleGrid()
 {
-  uint64_t newWidth = m_width * m_scale;
-  uint64_t newHeight = m_height * m_scale;
-
-  for (uint64_t i = 0; i < newHeight; i++)
+  uint32_t stride = m_width * 4 * m_scale;
+  for (uint64_t h = 0; h < m_height; h++)
   {
-    for (uint64_t j = 0; j < newWidth; j++)
+    for (uint64_t w = 0; w < m_width; w++)
     {
-      m_upsampledGrid[(j + (i * newWidth)) * 4] =
-        m_grid.getData()[((j / m_scale) + (i / m_scale) * m_width) * 4];
-      m_upsampledGrid[(j + (i * newWidth)) * 4 + 1] =
-        m_grid.getData()[((j / m_scale) + (i / m_scale) * m_width) * 4 + 1];
-      m_upsampledGrid[(j + (i * newWidth)) * 4 + 2] =
-        m_grid.getData()[((j / m_scale) + (i / m_scale) * m_width) * 4 + 2];
-      m_upsampledGrid[(j + (i * newWidth)) * 4 + 3] =
-        m_grid.getData()[((j / m_scale) + (i / m_scale) * m_width) * 4 + 3];
+      Color color = m_grid.getCell(h, w);
+      uint32_t offset = (h * stride) + (w * m_scale);
+      uint32_t c = color.red | ((uint32_t)color.green << 8) |
+                   ((uint32_t)color.blue << 16) | ((uint32_t)color.alpha << 24);
+      for (uint64_t sy = 0; sy < m_scale; sy++)
+      {
+        for (uint64_t sx = 0; sx < m_scale; sx++)
+        {
+          std::memcpy(m_upsampledGrid.m_data.ptr + offset + (stride * sy) +
+                        (sx * 4),
+                      &c, 4);
+        }
+      }
     }
   }
 }

@@ -3,6 +3,7 @@
 AlignTrailingComments: false
 BasedOnStyle: Microsoft
 ColumnLimit: 80
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
 ConstructorInitializerIndentWidth : 2
 ContinuationIndentWidth: 2
 IndentWidth: 2

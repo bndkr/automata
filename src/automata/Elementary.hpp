@@ -24,7 +24,7 @@ private:
   uint64_t m_width;
   Grid m_grid;
   uint64_t m_upsampledSize;
-  std::vector<uint8_t> m_upsampledGrid;
+  Grid m_upsampledGrid;
   uint32_t m_scale;
   int m_rule;
   ID3D11ShaderResourceView *m_view;

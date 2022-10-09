@@ -2,7 +2,7 @@
 
 Color Grid::getCell(uint64_t row, uint64_t col)
 {
-  uint64_t cellIndex = row * m_width + col;
+  uint64_t cellIndex = (row * m_width + col) * 4;
   return Color{m_data.get(cellIndex), m_data.get(cellIndex + 1),
                m_data.get(cellIndex + 2), m_data.get(cellIndex + 3)};
 }
