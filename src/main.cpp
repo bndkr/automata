@@ -3,6 +3,7 @@
 #include "imgui/imgui_impl_win32.h"
 
 #include "automata/ELementary.hpp"
+#include "automata/Conways.hpp"
 
 #include <tchar.h>
 
@@ -92,15 +93,20 @@ int main(int, char **)
     //   ImGui::ShowDemoWindow(&show_demo_window);
 
     static Elementary elementary(100, 200, 5, g_pd3dDevice);
+    static Conways conways(100, 200, 5, g_pd3dDevice);
 
     ImGui::Begin("Cellular Automata");
     ImGui::BeginTabBar("groups");
     if (ImGui::BeginTabItem("Elementary Automata"))
     {
       elementary.showAutomataWindow();
+      ImGui::EndTabItem();
     }
-    ImGui::EndTabItem();
-
+    if (ImGui::BeginTabItem("Conway's Game of Life"))
+    {
+      conways.showAutomataWindow();
+      ImGui::EndTabItem();
+    }
     ImGui::EndTabBar();
     ImGui::End();
 
