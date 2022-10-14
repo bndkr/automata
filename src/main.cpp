@@ -89,8 +89,8 @@ int main(int, char **)
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    // if (show_demo_window)
-    //   ImGui::ShowDemoWindow(&show_demo_window);
+     if (show_demo_window)
+       ImGui::ShowDemoWindow(&show_demo_window);
 
     static Elementary elementary(100, 200, 5, g_pd3dDevice);
     static Conways conways(100, 200, 5, g_pd3dDevice);

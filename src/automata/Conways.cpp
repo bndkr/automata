@@ -11,13 +11,14 @@ Conways::Conways(uint64_t height, uint64_t width, uint32_t scale, ID3D11Device* 
     m_width(width),
     m_grid(width, height),
     m_upsampledGrid(width * scale, height * scale),
+    m_rule(std::set<uint8_t>{3}, std::set<uint8_t>{2, 3}),
     m_scale(scale),
     m_wrap(false),
     m_pDevice(pDevice),
     m_texture(NULL),
     m_view(NULL)
 {
-  displayGrid();
+  loadGrid();
 }
 
 void Conways::showAutomataWindow()
@@ -28,11 +29,6 @@ void Conways::showAutomataWindow()
   {
     resetGrid();
   }
-
-  // if (ImGui::Button("Set Simulation"))
-  // {
-  //   updateGrid();
-  // }
 
   static int timer = 0;
   static int timerReset = 0;
@@ -50,7 +46,7 @@ void Conways::showAutomataWindow()
               1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 }
 
-void Conways::displayGrid()
+void Conways::loadGrid()
 {
   if (m_texture)
     m_texture->Release();
@@ -74,15 +70,15 @@ void Conways::updateGrid()
       uint32_t aliveNeighbors = countNeighbors(h, w);
       if (m_grid.checkCell(h, w))
       { // if the cell is alive
-        if (aliveNeighbors < 2 || aliveNeighbors > 3)
-        { // and has 2 or 3 living neighbors
+        if (!m_rule.survived(aliveNeighbors))
+        {
           m_grid.setCell(h, w, dead);
         }
       }
       else
       { // is the cell is dead
-        if (aliveNeighbors == 3)
-        { // and has exactly 3 living neighbors
+        if (m_rule.born(aliveNeighbors))
+        {
           m_grid.setCell(h, w, alive);
         }
       }
@@ -90,7 +86,7 @@ void Conways::updateGrid()
   }
   m_grid.applyChanges();
   upsampleGrid(m_grid, m_upsampledGrid, m_scale);
-  displayGrid();
+  loadGrid();
 }
 
 void Conways::resetGrid()
@@ -110,7 +106,7 @@ void Conways::resetGrid()
   }
   m_grid.applyChanges();
   upsampleGrid(m_grid, m_upsampledGrid, m_scale);
-  displayGrid();
+  loadGrid();
 }
 
 uint32_t Conways::countNeighbors(int32_t height, int32_t width)

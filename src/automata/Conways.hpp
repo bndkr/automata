@@ -4,6 +4,29 @@
 #include "Grid.hpp"
 
 #include <d3d11.h>  
+#include <set>
+
+class Rule
+{
+public:
+  Rule(std::set<uint8_t>& birthConditions,
+       std::set<uint8_t>& surviveConditions)
+    : m_birthConditions(birthConditions), m_surviveConditions(surviveConditions)
+  {}
+
+  bool survived(uint8_t neighbors)
+  {
+    return m_surviveConditions.count(neighbors);
+  }
+
+  bool born(uint8_t neighbors)
+  {
+    return m_birthConditions.count(neighbors);
+  }
+private:
+  std::set<uint8_t> m_birthConditions;
+  std::set<uint8_t> m_surviveConditions;
+};
 
 class Conways {
 public:
@@ -12,7 +35,7 @@ public:
 
   void showAutomataWindow();
 
-  void displayGrid();
+  void loadGrid();
 
   void updateGrid();
 
@@ -27,6 +50,7 @@ private:
   uint64_t m_width;
   Grid m_grid;
   Grid m_upsampledGrid;
+  Rule m_rule;
   uint32_t m_scale;
   bool m_wrap;
   ID3D11Device* m_pDevice;
