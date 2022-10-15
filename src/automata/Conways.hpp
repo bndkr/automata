@@ -6,9 +6,16 @@
 #include <d3d11.h>  
 #include <set>
 
-class Rule
+enum NeighborhoodSize
 {
-public:
+  Moore1,
+  Moore2,
+  vonNeumann1,
+  vonNewmann2
+};
+
+struct Rule
+{
   Rule(std::set<uint8_t>& birthConditions,
        std::set<uint8_t>& surviveConditions)
     : m_birthConditions(birthConditions), m_surviveConditions(surviveConditions)
@@ -23,7 +30,6 @@ public:
   {
     return m_birthConditions.count(neighbors);
   }
-private:
   std::set<uint8_t> m_birthConditions;
   std::set<uint8_t> m_surviveConditions;
 };
@@ -34,6 +40,8 @@ public:
           ID3D11Device* pDevice);
 
   void showAutomataWindow();
+
+  void showRuleMenu(bool& show);
 
   void loadGrid();
 
@@ -46,11 +54,13 @@ public:
   bool checkCell(int32_t row, int32_t col);
 
 private:
-  uint64_t m_height;
-  uint64_t m_width;
+  int64_t m_height;
+  int64_t m_width;
   Grid m_grid;
   Grid m_upsampledGrid;
   Rule m_rule;
+  Rule m_defaultRule;
+  NeighborhoodSize m_neighborhood;
   uint32_t m_scale;
   bool m_wrap;
   ID3D11Device* m_pDevice;

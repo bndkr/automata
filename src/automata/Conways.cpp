@@ -5,6 +5,7 @@
 
 #include <d3d11.h>
 #include <random>
+#include <string>
 
 Conways::Conways(uint64_t height, uint64_t width, uint32_t scale, ID3D11Device* pDevice)
   : m_height(height),
@@ -12,8 +13,10 @@ Conways::Conways(uint64_t height, uint64_t width, uint32_t scale, ID3D11Device* 
     m_grid(width, height),
     m_upsampledGrid(width * scale, height * scale),
     m_rule(std::set<uint8_t>{3}, std::set<uint8_t>{2, 3}),
+    m_defaultRule(std::set<uint8_t>{3}, std::set<uint8_t>{2, 3}),
+    m_neighborhood(NeighborhoodSize::Moore1),
     m_scale(scale),
-    m_wrap(false),
+    m_wrap(true),
     m_pDevice(pDevice),
     m_texture(NULL),
     m_view(NULL)
@@ -23,6 +26,19 @@ Conways::Conways(uint64_t height, uint64_t width, uint32_t scale, ID3D11Device* 
 
 void Conways::showAutomataWindow()
 {
+  static int timer = 0;
+  static int timerReset = 0;
+
+  static bool displayRuleMenu = false;
+
+  if (ImGui::Button("Show Rule Editor"))
+    displayRuleMenu = true;  
+
+  if (displayRuleMenu)
+    showRuleMenu(displayRuleMenu);
+    
+  
+
   ImGui::Checkbox("Wrap edges", &m_wrap);
 
   if (ImGui::Button("Start"))
@@ -30,9 +46,8 @@ void Conways::showAutomataWindow()
     resetGrid();
   }
 
-  static int timer = 0;
-  static int timerReset = 0;
   ImGui::SliderInt("Simulation Speed", &timerReset, 0, 60);
+  
   if (timer > timerReset)
   {
     updateGrid();
@@ -44,6 +59,70 @@ void Conways::showAutomataWindow()
                                      m_grid.getHeight() * m_scale));
   ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
               1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+}
+
+void Conways::showRuleMenu(bool& show)
+{
+  ImGuiWindowFlags flags = 0;
+  flags |= ImGuiWindowFlags_AlwaysAutoResize;
+  flags |= ImGuiWindowFlags_NoResize;
+  ImGui::Begin("Rule Editor", &show, flags);
+  ImGui::Text("Click to toggle rules");
+  if (ImGui::Button("Reset rule to default"))
+    m_rule = m_defaultRule;
+  if (ImGui::Button("Clear rule"))
+  {
+    m_rule = Rule(std::set<uint8_t>{}, std::set<uint8_t>{});
+  }
+  ImGui::Text("Birth Conditions:");
+  for (uint8_t i = 0; i < 9; i++)
+  {
+    if (ImGui::Button((std::string("b") + std::to_string(i)).c_str()))
+    {
+      if (m_rule.m_birthConditions.count(i))
+        m_rule.m_birthConditions.erase(i);
+      else
+        m_rule.m_birthConditions.insert(i);
+    }
+    if (i != 8)
+      ImGui::SameLine();
+  }
+  ImGui::Text("Survival Conditions:");
+  for (uint8_t i = 0; i < 9; i++)
+  {
+    if (ImGui::Button((std::string("s") + std::to_string(i)).c_str()))
+    {
+      if (m_rule.m_surviveConditions.count(i))
+        m_rule.m_surviveConditions.erase(i);
+      else
+        m_rule.m_surviveConditions.insert(i);
+    }
+    if (i != 8)
+      ImGui::SameLine();
+  }
+
+  ImGui::Text("Survival Conditions:");
+  for (uint8_t i = 0; i < 9; i++)
+  {
+    
+    if (i != 8)
+      ImGui::SameLine();
+  }
+
+  std::string ruleStr("Current Rule: {Birth: ");
+  for (const auto& rule : m_rule.m_birthConditions)
+  {
+    ruleStr += std::to_string(rule) + " ";
+  }
+  ruleStr += ", Survival: ";
+  for (const auto& rule : m_rule.m_surviveConditions)
+  {
+    ruleStr += std::to_string(rule) + " ";
+  }
+  ruleStr += "}";
+  ImGui::Text(ruleStr.c_str());
+
+  ImGui::End();
 }
 
 void Conways::loadGrid()
@@ -124,20 +203,19 @@ bool Conways::checkCell(int32_t row, int32_t col)
   int32_t c = col;
   if (m_wrap)
   {
-    if (row == -1)
-      r = m_height - 1;
-    if (row == m_height)
-      r = 0;
-    if (col == -1)
-      c = m_width - 1;
-    if (col == m_width)
-      c = 0;
+    if (row <= -1)
+      r = m_height + row;
+    if (row >= m_height)
+      r = m_height - row;
+    if (col <= -1)
+      c = m_width + col;
+    if (col >= m_width)
+      c = m_width - col;
   }
   else
   {
     if (row == -1 || row == m_height || col == -1 || col == m_width)
       return false;
   }
-
   return m_grid.checkCell(r, c);
 }
