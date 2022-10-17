@@ -89,15 +89,23 @@ int main(int, char **)
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    // if (show_demo_window)
-    //   ImGui::ShowDemoWindow(&show_demo_window);
+    if (show_demo_window)
+      ImGui::ShowDemoWindow(&show_demo_window);
 
     static Elementary elementary(100, 200, 5, g_pd3dDevice);
     static Conways conways(100, 200, 5, g_pd3dDevice);
 
-    ImGui::Begin("Cellular Automata", NULL,
-                 ImGuiWindowFlags_NoBringToFrontOnFocus |
-                   ImGuiWindowFlags_AlwaysAutoResize);
+    // make next window fullscreen
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->Pos);
+    ImGui::SetNextWindowSize(viewport->Size);
+    ImGuiWindowFlags flags = 0;
+    flags |= ImGuiWindowFlags_NoDecoration;
+    flags |= ImGuiWindowFlags_NoMove;
+    flags |= ImGuiWindowFlags_NoSavedSettings;
+    flags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
+
+    ImGui::Begin("Cellular Automata", NULL, flags);
     ImGui::BeginTabBar("groups");
     if (ImGui::BeginTabItem("Elementary Automata"))
     {

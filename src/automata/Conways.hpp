@@ -5,14 +5,7 @@
 
 #include <d3d11.h>  
 #include <set>
-
-enum NeighborhoodSize
-{
-  Moore1,
-  Moore2,
-  vonNeumann1,
-  vonNewmann2
-};
+#include <map>
 
 struct Rule
 {
@@ -60,8 +53,9 @@ private:
   Grid m_upsampledGrid;
   Rule m_rule;
   Rule m_defaultRule;
-  NeighborhoodSize m_neighborhood;
   uint32_t m_scale;
+  uint32_t m_neighborhoodSize;
+  std::map<std::string, Rule> m_presetRules;
   bool m_wrap;
   ID3D11Device* m_pDevice;
   ID3D11ShaderResourceView* m_view;
