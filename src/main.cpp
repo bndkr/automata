@@ -4,6 +4,8 @@
 
 #include "automata/ELementary.hpp"
 #include "automata/Conways.hpp"
+#include "automata/Gradient.hpp"
+#include "automata/Mandelbrot.hpp"
 
 #include <tchar.h>
 
@@ -94,6 +96,8 @@ int main(int, char **)
 
     static Elementary elementary(100, 200, 5, g_pd3dDevice);
     static Conways conways(100, 200, 5, g_pd3dDevice);
+    static Gradient gradient(100, 200, 5, g_pd3dDevice);
+    static Mandelbrot mandelbrot(500, 1000, g_pd3dDevice);
 
     // make next window fullscreen
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -116,6 +120,15 @@ int main(int, char **)
     {
       conways.showAutomataWindow();
       ImGui::EndTabItem();
+    }
+    if (ImGui::BeginTabItem("Gradient Automata"))
+    {
+      gradient.showAutomataWindow();
+      ImGui::EndTabItem();
+    }
+    if (ImGui::BeginTabItem("Mandelbrot Set"))
+    {
+      mandelbrot.showAutomataWindow();
     }
     ImGui::EndTabBar();
     ImGui::End();

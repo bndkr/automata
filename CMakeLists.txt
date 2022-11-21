@@ -39,6 +39,12 @@ set(automata_srcs
   src/automata/Conways.hpp
   src/automata/Elementary.cpp
   src/automata/Elementary.hpp
+  src/automata/Gradient.cpp
+  src/automata/Gradient.hpp
+  src/automata/Mandelbrot.cpp
+  src/automata/Mandelbrot.hpp
+  src/automata/Palette.cpp
+  src/automata/Palette.hpp
 )
 list(APPEND srcs ${automata_srcs})
 source_group("automata" FILES ${automata_srcs})

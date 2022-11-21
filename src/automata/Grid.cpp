@@ -1,5 +1,18 @@
 #include "Grid.hpp"
 
+bool Grid::setCellDirectly(uint64_t row, uint64_t col, Color color)
+{
+  if (row >= m_height || col >= m_width || !m_data.arr.data())
+  {
+    return false;
+  }
+  m_data.set((row * m_width + col) * 4, color.red);
+  m_data.set((row * m_width + col) * 4 + 1, color.green);
+  m_data.set((row * m_width + col) * 4 + 2, color.blue);
+  m_data.set((row * m_width + col) * 4 + 3, color.alpha);
+  return true;
+}
+
 Color Grid::getCell(uint64_t row, uint64_t col)
 {
   uint64_t cellIndex = (row * m_width + col) * 4;

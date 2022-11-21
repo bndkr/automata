@@ -11,16 +11,8 @@ struct Buffer
   std::vector<uint8_t> arr;
   uint64_t len;
 
-  Buffer(uint64_t size) : len(size)
+  Buffer(uint64_t size) : len(size), arr(size, 0)
   {
-    for (uint32_t i = 0; i < size; i++)
-    {
-      arr.push_back(0);
-    }
-  }
-  ~Buffer()
-  {
-    // TODO: this needs to free memory, but delete[] craps out
   }
   uint8_t get(uint64_t index)
   {
@@ -65,7 +57,6 @@ public:
   Grid(uint64_t width, uint64_t height)
     : m_width(width), m_height(height), m_data(width * height * 4)
   {
-    
     m_data.fill(0);
   }
 
@@ -86,6 +77,8 @@ public:
   Color getCell(uint64_t row, uint64_t col);
 
   bool setCell(uint64_t row, uint64_t col, Color color);
+
+  bool setCellDirectly(uint64_t row, uint64_t col, Color color);
 
   bool checkCell(uint64_t row, uint64_t col);
 
