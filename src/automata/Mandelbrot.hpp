@@ -5,12 +5,6 @@
 #include "Palette.hpp"
 #include <d3d11.h>
 
-struct MandelbrotResult
-{
-  uint32_t paletteIndex;
-  double gradient;
-};
-
 class Mandelbrot
 {
 public:
@@ -30,7 +24,7 @@ public:
 
 private:
 
-  MandelbrotResult calculatePixel(double x, double y);
+  double calculatePixel(double x, double y);
   int64_t m_height;
   int64_t m_width;
   double m_xmin;
@@ -45,6 +39,7 @@ private:
   ID3D11ShaderResourceView* m_view;
   ID3D11Texture2D* m_texture;
   bool m_updateView;
+  bool m_smoothColor;
 };
 
 #endif

@@ -35,7 +35,8 @@ Mandelbrot::Mandelbrot(uint64_t height, uint64_t width, ID3D11Device* pDevice)
     m_pDevice(pDevice),
     m_texture(NULL),
     m_view(NULL),
-    m_updateView(true)
+    m_updateView(true),
+    m_smoothColor(true)
 {
   loadGrid();
 }
@@ -126,7 +127,8 @@ void Mandelbrot::showRuleMenu(bool& show)
   flags |= ImGuiWindowFlags_AlwaysAutoResize;
   flags |= ImGuiWindowFlags_NoResize;
   ImGui::Begin("Fractal Options", &show, flags);
-
+  if (ImGui::Checkbox("Smooth Colors", &m_smoothColor))
+    m_updateView = true;
   static bool showPalette = false;
   ImGui::Checkbox("show palette", &showPalette);
 
@@ -147,7 +149,7 @@ void Mandelbrot::showRuleMenu(bool& show)
   static int numInterpolatedColors = 2;
 
   static std::vector<ImVec4> colors = {
-    {1.0, 1.0, 1.0, 1.0},
+    {0.0, 0.0, 0.0, 1.0},
     {1.0, 1.0, 1.0, 1.0},
     {1.0, 1.0, 1.0, 1.0},
     {1.0, 1.0, 1.0, 1.0},
@@ -185,9 +187,6 @@ void Mandelbrot::showRuleMenu(bool& show)
       m_updateView = true;
     }
   }
-  
-
-
   ImGui::End();
 }
 
@@ -248,26 +247,23 @@ bool Mandelbrot::getMandelbrotPixels(uint32_t offset, uint32_t numWorkers)
       double v_x = m_xmin + ((m_xmax - m_xmin) / m_width) * x;
       double v_y = m_ymin + ((m_ymax - m_ymin) / m_height) * y;
 
-      auto result = calculatePixel(v_x, v_y);
-      if (result.gradient == -1.0)
+      double result = calculatePixel(v_x, v_y);
+      if (result == -1.0)
       {
         m_grid.setCellDirectly(y, x, Color{0, 0, 0, 255});
       }
       else
       {
-        auto step = result.paletteIndex % m_palette.numColors;
-
+        int step = ((int) result) % m_palette.numColors;
+          
         auto baseColor = m_palette.getColor(step);
         auto nextColor = m_palette.getColor((step + 1) % m_palette.numColors);
         // interpolate between baseColor and nextColor
-
+        double gradient = result - step;
         auto newColor = Color{
-          (uint8_t)(baseColor.r +
-                    (nextColor.r - baseColor.r) * result.gradient),
-          (uint8_t)(baseColor.g +
-                    (nextColor.g - baseColor.g) * result.gradient),
-          (uint8_t)(baseColor.b +
-                    (nextColor.b - baseColor.b) * result.gradient),
+          (uint8_t)(baseColor.r + (nextColor.r - baseColor.r) * gradient),
+          (uint8_t)(baseColor.g + (nextColor.g - baseColor.g) * gradient),
+          (uint8_t)(baseColor.b + (nextColor.b - baseColor.b) * gradient),
           255};
 
         m_grid.setCellDirectly(y, x, newColor);
@@ -277,16 +273,14 @@ bool Mandelbrot::getMandelbrotPixels(uint32_t offset, uint32_t numWorkers)
   return true;
 }
 
-MandelbrotResult Mandelbrot::calculatePixel(double x, double y)
+double Mandelbrot::calculatePixel(double x, double y)
 {
   std::complex<double> z = {0, 0};
   std::complex<double> before = {0, 0};
   std::complex<double> c = {x, y};
 
   uint32_t iteration = 0;
-  while (z.imag() * z.imag() + z.real() * z.real() < 4 &&
-         iteration < m_iterations)
-    
+  while (abs(z) < 4 && iteration < m_iterations)
   {
     before = z;
     z = (z * z) + c;
@@ -294,11 +288,14 @@ MandelbrotResult Mandelbrot::calculatePixel(double x, double y)
   }
   if (iteration == m_iterations)
   {
-    return MandelbrotResult{0, -1.0f}; // inside the mandelbrot set
+    return -1; // inside the mandelbrot set
   }
-  auto min = sqrt(before.imag() * before.imag() + before.real() * before.real());
-  auto max = sqrt(z.imag() * z.imag() + z.real() * z.real());
+  if (m_smoothColor)
+  {
+    double log_zn = log(abs(z));
+    double gradient = 1 - log(log_zn / log(2)) / log(2);
 
-  auto gradient = (2 - min) / (max - min);
-  return MandelbrotResult{iteration, gradient};
+    return iteration + gradient;
+  }
+  return iteration;
 }
