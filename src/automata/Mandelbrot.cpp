@@ -29,7 +29,7 @@ Mandelbrot::Mandelbrot(uint64_t height, uint64_t width, ID3D11Device* pDevice)
     m_ymin(-1.0),
     m_ymax(1.0),
     m_iterations(50),
-    m_palette(100),
+    m_palette(60), // this must be divisible by 12 (3 and 4)
     m_numThreads(std::thread::hardware_concurrency()),
     m_grid(width, height),
     m_pDevice(pDevice),
@@ -38,7 +38,6 @@ Mandelbrot::Mandelbrot(uint64_t height, uint64_t width, ID3D11Device* pDevice)
     m_updateView(true)
 {
   loadGrid();
-  m_palette.interpolate(Color{0, 0, 0, 255}, Color{255, 255, 255, 255});
 }
 
 void Mandelbrot::showAutomataWindow()
@@ -87,7 +86,7 @@ void Mandelbrot::showAutomataWindow()
     m_updateView = true;
     wasDragging = true;
   }
-
+  // zoom in
   if (ImGui::IsItemHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && !wasDragging)
   {
     m_xmin = (m_xmin + complexX) / 2;
@@ -97,14 +96,14 @@ void Mandelbrot::showAutomataWindow()
     m_ymax = (m_ymax - complexY) / 2;
     m_updateView = true;
   }
-
+  // zoom out
   if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
   {
-    m_xmin -= (complexX - m_xmin) / 2;
-    m_xmax += (m_xmax - complexX) / 2;
+    m_xmin -= (complexX - m_xmin);
+    m_xmax += (m_xmax - complexX);
 
-    m_ymin += (complexY + m_ymin) / 2;
-    m_ymax += (m_ymax + complexY) / 2;
+    m_ymin += (complexY + m_ymin);
+    m_ymax += (m_ymax + complexY);
     m_updateView = true;
   }
 
@@ -128,45 +127,65 @@ void Mandelbrot::showRuleMenu(bool& show)
   flags |= ImGuiWindowFlags_NoResize;
   ImGui::Begin("Fractal Options", &show, flags);
 
+  static bool showPalette = false;
+  ImGui::Checkbox("show palette", &showPalette);
+
+  if (showPalette)
+  {
+    for (int i = 0; i < m_palette.numColors; i++)
+    {
+      ImGui::Text("Color %d: r:%d, g:%d, b:%d", i,
+                  m_palette.getColor(i).r, m_palette.getColor(i).g,
+                  m_palette.getColor(i).b);
+
+    }
+  }
   if (ImGui::SliderInt("Iterations", &m_iterations, 0, 2000))
     m_updateView = true;
   ImGui::Text("Palette options");
 
-  static int numInterpolatedColors = 2; //a    b     g     r
-  static std::vector<ImVec4> colors = {{1.0f, 0.0f, 0.0f, 0.0f},
-                                       {1.0f, 1.0f, 1.0f, 1.0f},
-                                       {1.0f, 0.0f, 0.0f, 1.0f},
-                                       {1.0f, 0.0f, 1.0f, 0.0f}};
+  static int numInterpolatedColors = 2;
 
+  static std::vector<ImVec4> colors = {
+    {1.0, 1.0, 1.0, 1.0},
+    {1.0, 1.0, 1.0, 1.0},
+    {1.0, 1.0, 1.0, 1.0},
+    {1.0, 1.0, 1.0, 1.0},
+  };
   const char* items[] = {"2", "3", "4"};
   static int item_current = 0;
   if (ImGui::Combo("Number of palette colors", &item_current, items,
     IM_ARRAYSIZE(items)))
   {
-    std::vector<Color> interpolateList;
-    for (int i = 0; i < numInterpolatedColors; i++)
-    {
-      interpolateList.push_back(imvec4ToColor(colors[i]));
-    }
-    updatePalette(interpolateList);
+    if (numInterpolatedColors == 2)
+      updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1])});
+    if (numInterpolatedColors == 3)
+      updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
+                     imvec4ToColor(colors[2])});
+    if (numInterpolatedColors == 4)
+      updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
+                     imvec4ToColor(colors[2]), imvec4ToColor(colors[3])});
     m_updateView = true;
   }
   numInterpolatedColors = item_current + 2;
-
   for (int i = 0; i < numInterpolatedColors; i++)
   {
-    if (ImGui::ColorEdit4((std::string("Color #") + std::to_string(i)).c_str(), (float*)&colors[i],
-                   ImGuiColorEditFlags_NoInputs))
+    if (ImGui::ColorEdit4(std::string("color " + std::to_string(i + 1)).c_str(),
+                          (float*)&(colors[i]),
+                          ImGuiColorEditFlags_NoInputs))
     {
-      std::vector<Color> interpolateList;
-      for (int i = 0; i < numInterpolatedColors; i++)
-      {
-        interpolateList.push_back(imvec4ToColor(colors[i]));
-      }
-      updatePalette(interpolateList);
+      if (numInterpolatedColors == 2)
+        updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1])});
+      if (numInterpolatedColors == 3)
+        updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
+                       imvec4ToColor(colors[2])});
+      if (numInterpolatedColors == 4)
+        updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
+                       imvec4ToColor(colors[2]), imvec4ToColor(colors[3])});
       m_updateView = true;
     }
   }
+  
 
 
   ImGui::End();
@@ -243,12 +262,12 @@ bool Mandelbrot::getMandelbrotPixels(uint32_t offset, uint32_t numWorkers)
         // interpolate between baseColor and nextColor
 
         auto newColor = Color{
-          (uint8_t)(baseColor.red +
-                    (nextColor.red - baseColor.red) * result.gradient),
-          (uint8_t)(baseColor.green +
-                    (nextColor.green - baseColor.green) * result.gradient),
-          (uint8_t)(baseColor.blue +
-                    (nextColor.blue - baseColor.blue) * result.gradient),
+          (uint8_t)(baseColor.r +
+                    (nextColor.r - baseColor.r) * result.gradient),
+          (uint8_t)(baseColor.g +
+                    (nextColor.g - baseColor.g) * result.gradient),
+          (uint8_t)(baseColor.b +
+                    (nextColor.b - baseColor.b) * result.gradient),
           255};
 
         m_grid.setCellDirectly(y, x, newColor);

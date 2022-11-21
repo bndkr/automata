@@ -6,10 +6,10 @@ bool Grid::setCellDirectly(uint64_t row, uint64_t col, Color color)
   {
     return false;
   }
-  m_data.set((row * m_width + col) * 4, color.red);
-  m_data.set((row * m_width + col) * 4 + 1, color.green);
-  m_data.set((row * m_width + col) * 4 + 2, color.blue);
-  m_data.set((row * m_width + col) * 4 + 3, color.alpha);
+  m_data.set((row * m_width + col) * 4, color.r);
+  m_data.set((row * m_width + col) * 4 + 1, color.g);
+  m_data.set((row * m_width + col) * 4 + 2, color.b);
+  m_data.set((row * m_width + col) * 4 + 3, color.a);
   return true;
 }
 
@@ -47,10 +47,10 @@ void Grid::applyChanges()
 {
   for (const auto& change : m_changes)
   {
-    m_data.set((change.row * m_width + change.col) * 4, change.color.red);
-    m_data.set((change.row * m_width + change.col) * 4 + 1, change.color.green);
-    m_data.set((change.row * m_width + change.col) * 4 + 2, change.color.blue);
-    m_data.set((change.row * m_width + change.col) * 4 + 3, change.color.alpha);
+    m_data.set((change.row * m_width + change.col) * 4, change.color.r);
+    m_data.set((change.row * m_width + change.col) * 4 + 1, change.color.g);
+    m_data.set((change.row * m_width + change.col) * 4 + 2, change.color.b);
+    m_data.set((change.row * m_width + change.col) * 4 + 3, change.color.a);
   }
   m_changes.clear();
 }
@@ -66,8 +66,8 @@ void upsampleGrid(Grid& unit, Grid& scaled, uint32_t scale)
     for (uint64_t w = 0; w < unitWidth; w++)
     {
       Color color = unit.getCell(h, w);
-      uint32_t c = color.red | ((uint32_t)color.green << 8) |
-                   ((uint32_t)color.blue << 16) | ((uint32_t)color.alpha << 24);
+      uint32_t c = color.r | ((uint32_t)color.g << 8) |
+                   ((uint32_t)color.b << 16) | ((uint32_t)color.a << 24);
 
       uint32_t offset = (h * stride * scale) + (w * scale * 4);
       for (uint64_t sy = 0; sy < scale; sy++)

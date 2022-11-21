@@ -38,10 +38,10 @@ struct Buffer
 
 struct Color
 {
-  uint8_t red;
-  uint8_t green;
-  uint8_t blue;
-  uint8_t alpha;
+  uint8_t r;
+  uint8_t g;
+  uint8_t b;
+  uint8_t a;
 };
 
 struct CellChange
@@ -84,8 +84,8 @@ public:
 
   void fill(Color color) // needs to be tested
   {
-    uint32_t c = color.red + (uint32_t)((uint32_t)color.green << 8) +
-                 ((uint32_t)color.blue << 16) + ((uint32_t)color.alpha << 24);
+    uint32_t c = color.r + (uint32_t)((uint32_t)color.g << 8) +
+                 ((uint32_t)color.b << 16) + ((uint32_t)color.a << 24);
 
     for (uint64_t i = 0; i < m_data.len; i += 4)
     {

@@ -292,5 +292,5 @@ uint32_t Gradient::checkCell(int32_t row, int32_t col)
   }
   auto color = m_grid.getCell(r, c);
   // return the average of rgb values
-  return ((uint32_t)color.red + color.blue + color.green) / 3;
+  return ((uint32_t)color.r + color.b + color.g) / 3;
 }

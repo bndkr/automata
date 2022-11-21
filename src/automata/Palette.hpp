@@ -4,8 +4,10 @@
 #include "Grid.hpp"
 struct Palette
 {
-  Palette(uint64_t numColors) : buffer(numColors * 3), numColors(numColors)
+  Palette(uint64_t numColors)
+    : buffer(numColors * 3), numColors(numColors)
   {
+    interpolate(Color{0, 0, 0, 255}, Color{255, 255, 255, 255});
   }
 
   Color getColor(uint64_t index);
