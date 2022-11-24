@@ -29,14 +29,15 @@ Mandelbrot::Mandelbrot(uint64_t height, uint64_t width, ID3D11Device* pDevice)
     m_ymin(-1.0),
     m_ymax(1.0),
     m_iterations(50),
-    m_palette(60), // this must be divisible by 12 (3 and 4)
+    m_palette(120), // this must be divisible by 12 (3 and 4)
     m_numThreads(std::thread::hardware_concurrency()),
     m_grid(width, height),
     m_pDevice(pDevice),
     m_texture(NULL),
     m_view(NULL),
     m_updateView(true),
-    m_smoothColor(true)
+    m_smoothColor(true),
+    m_debug(true)
 {
   loadGrid();
 }
@@ -62,6 +63,9 @@ void Mandelbrot::showAutomataWindow()
   auto mousePositionAbsolute = ImGui::GetMousePos();
   auto screenPositionAbsolute = ImGui::GetItemRectMin();
 
+  bool hovering = ImGui::IsItemHovered();
+  bool mouseDragging = ImGui::IsMouseDragging(ImGuiMouseButton_Left);
+
   mouseX = mousePositionAbsolute.x - screenPositionAbsolute.x;
   mouseY = mousePositionAbsolute.y - screenPositionAbsolute.y;
 
@@ -71,7 +75,7 @@ void Mandelbrot::showAutomataWindow()
 
   static bool wasDragging = false;
 
-  if (ImGui::IsItemHovered() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+  if (hovering && mouseDragging)
   {
     auto dragDelta = ImGui::GetMouseDragDelta();
     ImGui::ResetMouseDragDelta();
@@ -88,7 +92,8 @@ void Mandelbrot::showAutomataWindow()
     wasDragging = true;
   }
   // zoom in
-  if (ImGui::IsItemHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && !wasDragging)
+  if (hovering && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && !wasDragging)
+    
   {
     m_xmin = (m_xmin + complexX) / 2;
     m_xmax = (m_xmax + complexX) / 2;
@@ -98,7 +103,7 @@ void Mandelbrot::showAutomataWindow()
     m_updateView = true;
   }
   // zoom out
-  if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+  if (hovering && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
   {
     m_xmin -= (complexX - m_xmin);
     m_xmax += (m_xmax - complexX);
@@ -113,8 +118,12 @@ void Mandelbrot::showAutomataWindow()
     wasDragging = false;
   }
 
-  if (ImGui::IsItemHovered())
+  if (hovering && m_debug)
   {
+    auto result = calculatePixel(complexX, complexY);
+    ImGui::Text("Mouse X: %d", mouseX);
+    ImGui::Text("Mouse Y: %d", mouseY);
+    ImGui::Text("Iterations: %f", result);
     ImGui::Text("Complex space: %f, %f", complexX, complexY);
   }
   ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
@@ -129,6 +138,8 @@ void Mandelbrot::showRuleMenu(bool& show)
   ImGui::Begin("Fractal Options", &show, flags);
   if (ImGui::Checkbox("Smooth Colors", &m_smoothColor))
     m_updateView = true;
+  ImGui::Checkbox("Debug Info", &m_debug);
+
   static bool showPalette = false;
   ImGui::Checkbox("show palette", &showPalette);
 
@@ -280,7 +291,7 @@ double Mandelbrot::calculatePixel(double x, double y)
   std::complex<double> c = {x, y};
 
   uint32_t iteration = 0;
-  while (abs(z) < 4 && iteration < m_iterations)
+  while (abs(z) < 2 && iteration < m_iterations)
   {
     before = z;
     z = (z * z) + c;
@@ -292,8 +303,16 @@ double Mandelbrot::calculatePixel(double x, double y)
   }
   if (m_smoothColor)
   {
-    double log_zn = log(abs(z));
-    double gradient = 1 - log(log_zn / log(2)) / log(2);
+    // actual gradient formula
+    // double log_zn = log(abs(z));
+    // double gradient = 1 - log(log_zn / log(2)) / log(2);
+
+    double ratio = (std::abs(z) - 2) / (2 - std::abs(before));
+
+    // a positive number between 0 and 1
+    // for all real positive ratios.
+    double gradient = 1 / (ratio + 1);
+
 
     return iteration + gradient;
   }

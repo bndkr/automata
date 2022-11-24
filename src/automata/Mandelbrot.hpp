@@ -40,6 +40,7 @@ private:
   ID3D11Texture2D* m_texture;
   bool m_updateView;
   bool m_smoothColor;
+  bool m_debug;
 };
 
 #endif
