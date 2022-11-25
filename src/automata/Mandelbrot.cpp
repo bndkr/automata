@@ -18,9 +18,9 @@ Color imvec4ToColor(ImVec4 vec)
   return Color{red, green, blue, alpha};
 }
 
-int normalizeIteration(int input)
+double normalizeIteration(double input)
 {
-  return input;
+  return 12 * sqrt(input);
 }
 } // namespace
 
@@ -291,8 +291,9 @@ bool Mandelbrot::getMandelbrotPixels(uint32_t offset, uint32_t numWorkers)
         }
         else
         {
+          result = normalizeIteration(result);
           double gradient = result - (int)result;
-          int step = normalizeIteration((int)result) % m_palette.numColors;
+          int step = (int)result % m_palette.numColors;
           int nextStep = (step + 1) % m_palette.numColors;
           auto baseColor = m_palette.getColor(step);
           auto nextColor = m_palette.getColor(nextStep);
