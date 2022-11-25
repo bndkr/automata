@@ -108,7 +108,7 @@ void Conways::showAutomataWindow()
 
    ImGui::Image((void*)m_view, ImVec2(m_grid.getWidth() * m_scale,
                                       m_grid.getHeight() * m_scale));
-  /*
+  
   bool isHovered = ImGui::IsItemHovered();
   ImVec2 mousePositionAbsolute = ImGui::GetMousePos();
   ImVec2 screenPositionAbsolute = ImGui::GetItemRectMin();
@@ -133,7 +133,7 @@ void Conways::showAutomataWindow()
 
   ImDrawList* draw_list = ImGui::GetWindowDrawList();
   draw_list->AddImage(m_view, ImVec2(1, 100), ImVec2(1, 100));
-  */
+  
 }
 
 void Conways::showRuleMenu(bool& show)

@@ -20,7 +20,7 @@ Color imvec4ToColor(ImVec4 vec)
 
 double normalizeIteration(double input)
 {
-  return 12 * sqrt(input);
+  return (input * log(input)) / sqrt(input);
 }
 } // namespace
 
@@ -37,10 +37,7 @@ Mandelbrot::Mandelbrot(uint64_t height, uint64_t width, ID3D11Device* pDevice)
     m_grid(width, height),
     m_pDevice(pDevice),
     m_texture(NULL),
-    m_view(NULL),
-    m_updateView(true),
-    m_smooth(Smooth::Logarithmic),
-    m_debug(true)
+    m_view(NULL)
 {
   loadGrid();
 }
@@ -52,16 +49,101 @@ void Mandelbrot::showAutomataWindow()
   static uint32_t mouseX;
   static uint32_t mouseY;
 
+  static bool updateView = true;
+  static Smooth smooth = Smooth::Logarithmic;
+  static bool debug;
+
+  const char* smoothList[] = {"None", "Linear", "Logarithmic", "Distance"};
+  static int smoothIdx = smooth;
+  static bool showPalette = false;
+  static int numInterpolatedColors = 2;
+  const char* items[] = {"2", "3", "4"};
+  static int item_current = 0;
+
+  static std::vector<ImVec4> colors = {
+    {0.0, 0.0, 0.0, 1.0},
+    {1.0, 1.0, 1.0, 1.0},
+    {1.0, 1.0, 1.0, 1.0},
+    {1.0, 1.0, 1.0, 1.0},
+  };
+
   if (ImGui::Button("Show Rule Editor"))
     displayRuleMenu = true;
   if (displayRuleMenu)
-    showRuleMenu(displayRuleMenu);
-
-  if (m_updateView)
   {
-    updateGrid();
+    ImGuiWindowFlags flags = 0;
+    flags |= ImGuiWindowFlags_AlwaysAutoResize;
+    flags |= ImGuiWindowFlags_NoResize;
+    ImGui::Begin("Fractal Options", &displayRuleMenu, flags);
+    
+    if (ImGui::Combo("Smoothing Algorithm", &smoothIdx, smoothList,
+                     IM_ARRAYSIZE(smoothList)))
+    {
+      smooth = (Smooth)smoothIdx;
+      updateView = true;
+      m_grid.clear();
+    }
+
+    ImGui::Checkbox("Debug Info", &debug);
+
+    ImGui::Checkbox("show palette", &showPalette);
+
+    if (showPalette)
+    {
+      for (int i = 0; i < m_palette.numColors; i++)
+      {
+        ImGui::Text("Color %d: r:%d, g:%d, b:%d", i, m_palette.getColor(i).r,
+                    m_palette.getColor(i).g, m_palette.getColor(i).b);
+      }
+    }
+    if (ImGui::SliderInt("Iterations", &m_iterations, 0, 2000))
+    {
+      m_grid.clear();
+      updateView = true;
+    }
+    ImGui::Text("Palette options");
+    
+    if (ImGui::Combo("Number of palette colors", &item_current, items,
+                     IM_ARRAYSIZE(items)))
+    {
+      if (numInterpolatedColors == 2)
+        updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1])});
+      if (numInterpolatedColors == 3)
+        updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
+                       imvec4ToColor(colors[2])});
+      if (numInterpolatedColors == 4)
+        updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
+                       imvec4ToColor(colors[2]), imvec4ToColor(colors[3])});
+      m_grid.clear();
+      updateView = true;
+    }
+    numInterpolatedColors = item_current + 2;
+    for (int i = 0; i < numInterpolatedColors; i++)
+    {
+      if (ImGui::ColorEdit4(
+            std::string("color " + std::to_string(i + 1)).c_str(),
+            (float*)&(colors[i]), ImGuiColorEditFlags_NoInputs))
+      {
+        if (numInterpolatedColors == 2)
+          updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1])});
+        if (numInterpolatedColors == 3)
+          updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
+                         imvec4ToColor(colors[2])});
+        if (numInterpolatedColors == 4)
+          updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
+                         imvec4ToColor(colors[2]), imvec4ToColor(colors[3])});
+        m_grid.clear();
+        updateView = true;
+      }
+    }
+    ImGui::End();
   }
-  m_updateView = false;
+
+  if (updateView)
+  {
+    updateGrid(smooth);
+  }
+  updateView = false;
 
   ImGui::Image((void*)m_view, ImVec2(m_width, m_height));
 
@@ -94,7 +176,7 @@ void Mandelbrot::showAutomataWindow()
       m_ymin -= complexDiffY;
       m_ymax -= complexDiffY;
 
-      m_updateView = true;
+      updateView = true;
       wasDragging = true;
       m_grid.translate(dragDelta.x, dragDelta.y);
     }
@@ -108,7 +190,7 @@ void Mandelbrot::showAutomataWindow()
     m_ymin = (m_ymin - complexY) / 2;
     m_ymax = (m_ymax - complexY) / 2;
     m_grid.clear();
-    m_updateView = true;
+    updateView = true;
   }
   // zoom out
   if (hovering && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
@@ -119,7 +201,7 @@ void Mandelbrot::showAutomataWindow()
     m_ymin += (complexY + m_ymin);
     m_ymax += (m_ymax + complexY);
     m_grid.clear();
-    m_updateView = true;
+    updateView = true;
   }
 
   if (ImGui::IsMouseReleased(ImGuiMouseButton_Left && wasDragging))
@@ -127,9 +209,9 @@ void Mandelbrot::showAutomataWindow()
     wasDragging = false;
   }
 
-  if (hovering && m_debug)
+  if (hovering && debug)
   {
-    auto result = calculatePixel(complexX, complexY);
+    auto result = calculatePixel(complexX, complexY, smooth);
     ImGui::Text("Screen space: x:%d, y:%d", mouseX, mouseY);
     ImGui::Text("Complex space: x:%f, y:%f", complexX, complexY);
     ImGui::Text("Iterations: %f", result);
@@ -138,91 +220,6 @@ void Mandelbrot::showAutomataWindow()
               1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
   
-}
-
-void Mandelbrot::showRuleMenu(bool& show)
-{
-  ImGuiWindowFlags flags = 0;
-  flags |= ImGuiWindowFlags_AlwaysAutoResize;
-  flags |= ImGuiWindowFlags_NoResize;
-  ImGui::Begin("Fractal Options", &show, flags);
-
-  const char* smooth[] = {"None", "Linear", "Logarithmic", "Distance"};
-  static int smoothIdx = m_smooth;
-  if (ImGui::Combo("Smoothing Algorithm", &smoothIdx, smooth, IM_ARRAYSIZE(smooth)))
-  {
-    m_smooth = (Smooth)smoothIdx;
-    m_updateView = true;
-    m_grid.clear();
-  }
-  
-  ImGui::Checkbox("Debug Info", &m_debug);
-
-  static bool showPalette = false;
-  ImGui::Checkbox("show palette", &showPalette);
-
-  if (showPalette)
-  {
-    for (int i = 0; i < m_palette.numColors; i++)
-    {
-      ImGui::Text("Color %d: r:%d, g:%d, b:%d", i,
-                  m_palette.getColor(i).r, m_palette.getColor(i).g,
-                  m_palette.getColor(i).b);
-
-    }
-  }
-  if (ImGui::SliderInt("Iterations", &m_iterations, 0, 2000))
-  {
-    m_grid.clear();
-    m_updateView = true;
-  }
-  ImGui::Text("Palette options");
-
-  static int numInterpolatedColors = 2;
-
-  // todo: make this a member variable
-  static std::vector<ImVec4> colors = {
-    {0.0, 0.0, 0.0, 1.0},
-    {1.0, 1.0, 1.0, 1.0},
-    {1.0, 1.0, 1.0, 1.0},
-    {1.0, 1.0, 1.0, 1.0},
-  };
-  const char* items[] = {"2", "3", "4"};
-  static int item_current = 0;
-  if (ImGui::Combo("Number of palette colors", &item_current, items,
-    IM_ARRAYSIZE(items)))
-  {
-    if (numInterpolatedColors == 2)
-      updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1])});
-    if (numInterpolatedColors == 3)
-      updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
-                     imvec4ToColor(colors[2])});
-    if (numInterpolatedColors == 4)
-      updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
-                     imvec4ToColor(colors[2]), imvec4ToColor(colors[3])});
-    m_grid.clear();
-    m_updateView = true;
-  }
-  numInterpolatedColors = item_current + 2;
-  for (int i = 0; i < numInterpolatedColors; i++)
-  {
-    if (ImGui::ColorEdit4(std::string("color " + std::to_string(i + 1)).c_str(),
-                          (float*)&(colors[i]),
-                          ImGuiColorEditFlags_NoInputs))
-    {
-      if (numInterpolatedColors == 2)
-        updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1])});
-      if (numInterpolatedColors == 3)
-        updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
-                       imvec4ToColor(colors[2])});
-      if (numInterpolatedColors == 4)
-        updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
-                       imvec4ToColor(colors[2]), imvec4ToColor(colors[3])});
-      m_grid.clear();
-      m_updateView = true;
-    }
-  }
-  ImGui::End();
 }
 
 void Mandelbrot::loadGrid()
@@ -236,14 +233,14 @@ void Mandelbrot::loadGrid()
                                 m_pDevice, m_width, m_height);
 }
 
-void Mandelbrot::updateGrid()
+void Mandelbrot::updateGrid(Smooth smooth)
 {
   std::vector<std::future<bool>> futures;
   for (uint32_t i = 0; i < m_numThreads; i++)
   {
     futures.push_back(std::async(std::launch::async,
                                  &Mandelbrot::getMandelbrotPixels, this, i,
-                                 m_numThreads));
+                                 m_numThreads, smooth));
   }
 
   for (auto&& future : futures)
@@ -272,7 +269,7 @@ void Mandelbrot::updatePalette(std::vector<Color> colorList)
                           colorList[3]);
 }
 
-bool Mandelbrot::getMandelbrotPixels(uint32_t offset, uint32_t numWorkers)
+bool Mandelbrot::getMandelbrotPixels(uint32_t offset, uint32_t numWorkers, Smooth smooth)
 {
   for (uint32_t x = 0; x < m_width; x++)
   {
@@ -284,7 +281,7 @@ bool Mandelbrot::getMandelbrotPixels(uint32_t offset, uint32_t numWorkers)
         double v_x = m_xmin + ((m_xmax - m_xmin) / m_width) * x;
         double v_y = m_ymin + ((m_ymax - m_ymin) / m_height) * y;
 
-        double result = calculatePixel(v_x, v_y);
+        double result = calculatePixel(v_x, v_y, smooth);
         if (result == -1.0)
         {
           m_grid.setCellDirectly(y, x, Color{0, 0, 0, 255});
@@ -311,7 +308,7 @@ bool Mandelbrot::getMandelbrotPixels(uint32_t offset, uint32_t numWorkers)
   return true;
 }
 
-double Mandelbrot::calculatePixel(double x_0, double y_0)
+double Mandelbrot::calculatePixel(double x_0, double y_0, Smooth smooth)
 {
   // cardioid check
   double p = sqrt((x_0 - 0.25) * (x_0 - 0.25) + y_0 * y_0);
@@ -335,7 +332,7 @@ double Mandelbrot::calculatePixel(double x_0, double y_0)
   double dz_y = 0;
 
   uint32_t iteration = 0;
-  while (x_2 + y_2 < (m_smooth == Smooth::Logarithmic ? 16 : 4) &&
+  while (x_2 + y_2 < (smooth == Smooth::Logarithmic ? 16 : 4) &&
          iteration < m_iterations)
   {
     before_x = z_x;
@@ -353,14 +350,14 @@ double Mandelbrot::calculatePixel(double x_0, double y_0)
   {
     return -1; // inside the mandelbrot set
   }
-  if (m_smooth == Smooth::Linear)
+  if (smooth == Smooth::Linear)
   {
     double ratio = (sqrt(x_2 + y_2) - 2) /
                     (2 - sqrt(before_x * before_x + before_y * before_y));
     double gradient = 1 / (ratio + 1);
     return iteration + gradient;
   }
-  if (m_smooth == Smooth::Logarithmic)
+  if (smooth == Smooth::Logarithmic)
   {
     double log_zn = log(sqrt(x_2 + y_2));
     double gradient = 1 - log(log_zn / log(2)) / log(2);

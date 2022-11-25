@@ -20,19 +20,17 @@ public:
 
   void showAutomataWindow();
 
-  void showRuleMenu(bool& show);
-
   void loadGrid();
 
-  void updateGrid();
+  void updateGrid(Smooth smooth);
 
   void updatePalette(std::vector<Color> colorList);
 
-  bool getMandelbrotPixels(uint32_t offset, uint32_t numWorkers);
+  bool getMandelbrotPixels(uint32_t offset, uint32_t numWorkers, Smooth smooth);
 
 private:
 
-  double calculatePixel(double x, double y);
+  double calculatePixel(double x, double y, Smooth smooth);
   int64_t m_height;
   int64_t m_width;
   double m_xmin;
@@ -46,8 +44,6 @@ private:
   ID3D11Device* m_pDevice;
   ID3D11ShaderResourceView* m_view;
   ID3D11Texture2D* m_texture;
-  bool m_updateView;
-  Smooth m_smooth;
   bool m_debug;
 };
 
