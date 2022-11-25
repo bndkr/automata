@@ -37,6 +37,29 @@ bool Grid::checkCell(uint64_t row, uint64_t col)
   return m_data.get((row * m_width + col) * 4 + 3) != 0;
 }
 
+void Grid::translate(int dx, int dy)
+{
+  if (dx != 0 || dy != 0)
+  {
+    Grid newGrid(m_width, m_height);
+    for (uint32_t x = 0; x < m_width; x++)
+    {
+      for (uint32_t y = 0; y < m_height; y++)
+      {
+        Color c = getCell(y, x);
+
+        uint32_t newX = x + dx;
+        uint32_t newY = y + dy;
+        if (!(newX >= m_width || newX < 0 || newY >= m_height || newY < 0))
+        {
+          newGrid.setCellDirectly(newY, newX, c);
+        }
+      }
+    }
+    std::memcpy(getData(), newGrid.getData(), m_height * m_width * 4);
+  }
+}
+
 void Grid::clear()
 {
   m_data.fill(0);

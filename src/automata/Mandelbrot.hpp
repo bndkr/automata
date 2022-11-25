@@ -5,6 +5,14 @@
 #include "Palette.hpp"
 #include <d3d11.h>
 
+enum Smooth
+{
+  None,
+  Linear,
+  Logarithmic,
+  Distance
+};
+
 class Mandelbrot
 {
 public:
@@ -39,7 +47,7 @@ private:
   ID3D11ShaderResourceView* m_view;
   ID3D11Texture2D* m_texture;
   bool m_updateView;
-  bool m_smoothColor;
+  Smooth m_smooth;
   bool m_debug;
 };
 

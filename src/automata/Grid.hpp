@@ -95,6 +95,8 @@ public:
 
   void clear();
 
+  void translate(int dx, int dy);
+
   void applyChanges();
 
   Buffer m_data;
