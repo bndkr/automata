@@ -20,7 +20,7 @@ Color imvec4ToColor(ImVec4 vec)
 
 double normalizeIteration(double input)
 {
-  return (input * log(input)) / sqrt(input);
+  return (input * log(input + 1)) / sqrt(input);
 }
 } // namespace
 
@@ -55,7 +55,6 @@ void Mandelbrot::showAutomataWindow()
 
   const char* smoothList[] = {"None", "Linear", "Logarithmic", "Distance"};
   static int smoothIdx = smooth;
-  static bool showPalette = false;
   static int numInterpolatedColors = 2;
   const char* items[] = {"2", "3", "4"};
   static int item_current = 0;
@@ -67,7 +66,7 @@ void Mandelbrot::showAutomataWindow()
     {1.0, 1.0, 1.0, 1.0},
   };
 
-  if (ImGui::Button("Show Rule Editor"))
+  if (ImGui::Button("Fractal Options"))
     displayRuleMenu = true;
   if (displayRuleMenu)
   {
@@ -86,16 +85,7 @@ void Mandelbrot::showAutomataWindow()
 
     ImGui::Checkbox("Debug Info", &debug);
 
-    ImGui::Checkbox("show palette", &showPalette);
 
-    if (showPalette)
-    {
-      for (int i = 0; i < m_palette.numColors; i++)
-      {
-        ImGui::Text("Color %d: r:%d, g:%d, b:%d", i, m_palette.getColor(i).r,
-                    m_palette.getColor(i).g, m_palette.getColor(i).b);
-      }
-    }
     if (ImGui::SliderInt("Iterations", &m_iterations, 0, 2000))
     {
       m_grid.clear();
@@ -288,7 +278,14 @@ bool Mandelbrot::getMandelbrotPixels(uint32_t offset, uint32_t numWorkers, Smoot
         }
         else
         {
-          result = normalizeIteration(result);
+          if (smooth == Smooth::Distance)
+          {
+            result = 1 / result;
+          }
+          else
+          {
+            result = normalizeIteration(result);
+          }
           double gradient = result - (int)result;
           int step = (int)result % m_palette.numColors;
           int nextStep = (step + 1) % m_palette.numColors;
@@ -301,6 +298,7 @@ bool Mandelbrot::getMandelbrotPixels(uint32_t offset, uint32_t numWorkers, Smoot
             (uint8_t)(baseColor.b + (nextColor.b - baseColor.b) * gradient),
             255};
           m_grid.setCellDirectly(y, x, newColor);
+          
         }
       }
     }
@@ -344,6 +342,15 @@ double Mandelbrot::calculatePixel(double x_0, double y_0, Smooth smooth)
     x_2 = z_x * z_x;
     y_2 = z_y * z_y;
 
+    if (smooth == Smooth::Distance)
+    {
+      double dz_x_new = 2 * (z_x * dz_x - z_y * dz_y) + 1;
+      double dz_y_new = 2 * (z_y * dz_x + z_x * dz_y);
+
+      dz_x = dz_x_new;
+      dz_y = dz_y_new;
+    }
+
     iteration++;
   }
   if (iteration == m_iterations)
@@ -362,6 +369,11 @@ double Mandelbrot::calculatePixel(double x_0, double y_0, Smooth smooth)
     double log_zn = log(sqrt(x_2 + y_2));
     double gradient = 1 - log(log_zn / log(2)) / log(2);
     return iteration + gradient;
+  }
+  if (smooth == Smooth::Distance)
+  {
+    double mod_z = sqrt(x_2 + y_2);
+    return mod_z * log(mod_z) / sqrt(dz_x * dz_x + dz_y * dz_y);
   }
   return iteration;
 }
