@@ -5,6 +5,8 @@
 #include "Palette.hpp"
 #include <d3d11.h>
 
+#include <imgui/imgui.h>
+
 enum Smooth
 {
   None,
@@ -45,6 +47,9 @@ private:
   ID3D11ShaderResourceView* m_view;
   ID3D11Texture2D* m_texture;
   bool m_debug;
+  float m_minDistance;
+  ImVec4 m_setColor;
+  ImVec4 m_distanceColor;
 };
 
 #endif
