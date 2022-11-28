@@ -21,12 +21,6 @@ Color imvec4ToColor(ImVec4 vec)
   return Color{red, green, blue, alpha};
 }
 
-ImVec4 colorToImvec4(Color c)
-{
-  return ImVec4{(float)c.r / 255, (float)c.g / 255, (float)c.b / 255,
-                (float)c.a / 255};
-}
-
 double normalizeIteration(double input)
 {
   return (input * log(input + 1)) / sqrt(input);
@@ -48,8 +42,8 @@ Mandelbrot::Mandelbrot(uint64_t height, uint64_t width, ID3D11Device* pDevice)
     m_texture(NULL),
     m_view(NULL),
     m_minDistance(0.001),
-    m_setColor(colorToImvec4(Color{0, 0, 0, 255})),
-    m_distanceColor(colorToImvec4(Color{255, 255, 255, 255}))
+    m_setColor(ImVec4{0, 0, 0, 1}),
+    m_distanceColor(ImVec4{1, 1, 1, 1})
 {
   loadGrid();
 }
@@ -71,12 +65,10 @@ void Mandelbrot::showAutomataWindow()
   const char* items[] = {"2", "3", "4"};
   static int item_current = 0;
 
-  static std::vector<ImVec4> colors = {
-    {0.0, 0.0, 0.0, 1.0},
-    {1.0, 1.0, 1.0, 1.0},
-    {1.0, 1.0, 1.0, 1.0},
-    {1.0, 1.0, 1.0, 1.0},
-  };
+  static ImVec4 color0 = {0, 0, 0, 1};
+  static ImVec4 color1 = {1, 1, 1, 1};
+  static ImVec4 color2 = {1, 1, 1, 1};
+  static ImVec4 color3 = {1, 1, 1, 1};
 
   if (ImGui::Button("Fractal Options"))
     displayRuleMenu = true;
@@ -133,34 +125,36 @@ void Mandelbrot::showAutomataWindow()
                        IM_ARRAYSIZE(items)))
       {
         if (numInterpolatedColors == 2)
-          updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1])});
+          updatePalette({imvec4ToColor(color0), imvec4ToColor(color1)});
         if (numInterpolatedColors == 3)
-          updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
-                         imvec4ToColor(colors[2])});
+          updatePalette({imvec4ToColor(color0), imvec4ToColor(color1),
+                         imvec4ToColor(color2)});
         if (numInterpolatedColors == 4)
-          updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
-                         imvec4ToColor(colors[2]), imvec4ToColor(colors[3])});
+          updatePalette({imvec4ToColor(color0), imvec4ToColor(color1),
+                         imvec4ToColor(color2), imvec4ToColor(color3)});
         m_grid.clear();
         updateView = true;
       }
       numInterpolatedColors = item_current + 2;
-      for (int i = 0; i < numInterpolatedColors; i++)
+      if (ImGui::ColorEdit4("color 0", (float*)&(color0),
+                            ImGuiColorEditFlags_NoInputs) ||
+          ImGui::ColorEdit4("color 1", (float*)&(color1),
+                            ImGuiColorEditFlags_NoInputs) ||
+          ImGui::ColorEdit4("color 2", (float*)&(color2),
+                            ImGuiColorEditFlags_NoInputs) ||
+          ImGui::ColorEdit4("color 3", (float*)&(color3),
+                            ImGuiColorEditFlags_NoInputs))
       {
-        if (ImGui::ColorEdit4(
-              std::string("color " + std::to_string(i + 1)).c_str(),
-              (float*)&(colors[i]), ImGuiColorEditFlags_NoInputs))
-        {
-          if (numInterpolatedColors == 2)
-            updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1])});
-          if (numInterpolatedColors == 3)
-            updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
-                           imvec4ToColor(colors[2])});
-          if (numInterpolatedColors == 4)
-            updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
-                           imvec4ToColor(colors[2]), imvec4ToColor(colors[3])});
-          m_grid.clear();
-          updateView = true;
-        }
+        if (numInterpolatedColors == 2)
+          updatePalette({imvec4ToColor(color0), imvec4ToColor(color1)});
+        if (numInterpolatedColors == 3)
+          updatePalette({imvec4ToColor(color0), imvec4ToColor(color1),
+                         imvec4ToColor(color2)});
+        if (numInterpolatedColors == 4)
+          updatePalette({imvec4ToColor(color0), imvec4ToColor(color1),
+                         imvec4ToColor(color2), imvec4ToColor(color3)});
+        m_grid.clear();
+        updateView = true;
       }
     }
     ImGui::End();
@@ -355,11 +349,6 @@ double Mandelbrot::calculatePixel(double x_0, double y_0, Smooth smooth)
   if ((x_0 + 1) * (x_0 + 1) + y_0 * y_0 <= 1.0 / 16)
     return -1;
 
-  // std::complex<double> z = {0, 0};
-  // std::complex<double> c = {x_0, y_0};
-  // 
-  // std::complex<double> dz = {1, 0};
-
   double z_x = 0;
   double z_y = 0;
   
@@ -376,13 +365,6 @@ double Mandelbrot::calculatePixel(double x_0, double y_0, Smooth smooth)
   while (x_2 + y_2 < (smooth == Smooth::Logarithmic ? 16 : 4) &&
          iteration < m_iterations)
   {
-    // auto z_t = z * z + c;
-    // std::complex<double> dz_t =
-    //   (dz * z) * std::complex<double>{2, 0} + std::complex<double>{1, 0};
-    
-    // z = z_t;
-    // dz = dz_t;
-
      before_x = z_x;
      before_y = z_y;
      

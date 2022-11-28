@@ -6,10 +6,11 @@ Color Palette::getColor(uint64_t index)
   {
     throw std::runtime_error("color index out of range");
   }
-  return Color{buffer.get(index * 3), buffer.get(index * 3 + 1),
-               buffer.get(index * 3 + 2), 255};
+  return Color{buffer.get(index * 3 + 2), buffer.get(index * 3 + 1),
+               buffer.get(index * 3), 255};
 }
 
+// never used
 void Palette::setColor(Color color, uint64_t index)
 {
   if (index >= numColors)
