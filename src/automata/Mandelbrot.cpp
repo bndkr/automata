@@ -14,16 +14,16 @@ namespace
 {
 Color imvec4ToColor(ImVec4 vec)
 {
-  uint8_t red = vec.z * 255;
+  uint8_t red = vec.x * 255;
   uint8_t green = vec.y * 255;
-  uint8_t blue = vec.x * 255;
+  uint8_t blue = vec.z * 255;
   uint8_t alpha = vec.w * 255;
   return Color{red, green, blue, alpha};
 }
 
 ImVec4 colorToImvec4(Color c)
 {
-  return ImVec4{(float)c.b / 255, (float)c.g / 255, (float)c.r / 255,
+  return ImVec4{(float)c.r / 255, (float)c.g / 255, (float)c.b / 255,
                 (float)c.a / 255};
 }
 
@@ -40,8 +40,8 @@ Mandelbrot::Mandelbrot(uint64_t height, uint64_t width, ID3D11Device* pDevice)
     m_xmax(2.0),
     m_ymin(-1.0),
     m_ymax(1.0),
-    m_iterations(50),
-    m_palette(120), // this must be divisible by 12 (3 and 4)
+    m_iterations(100),
+    m_palette(240), // this must be divisible by 12 (3 and 4)
     m_numThreads(std::thread::hardware_concurrency()),
     m_grid(width, height),
     m_pDevice(pDevice),
@@ -65,7 +65,7 @@ void Mandelbrot::showAutomataWindow()
   static Smooth smooth = Smooth::Distance;
   static bool debug;
 
-  const char* smoothList[] = {"None", "Linear", "Logarithmic", "Distance"};
+  const char* smoothList[] = {"None", "Linear", "Logarithmic", "Distance Estimate"};
   static int smoothIdx = smooth;
   static int numInterpolatedColors = 2;
   const char* items[] = {"2", "3", "4"};
@@ -163,10 +163,6 @@ void Mandelbrot::showAutomataWindow()
         }
       }
     }
-
-    
-    
-    
     ImGui::End();
   }
 
@@ -249,10 +245,9 @@ void Mandelbrot::showAutomataWindow()
   }
   ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
               1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-
-  
 }
 
+// should be called once per frame
 void Mandelbrot::loadGrid()
 {
   if (m_texture)
