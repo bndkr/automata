@@ -14,6 +14,7 @@ struct Buffer
   Buffer(uint64_t size) : len(size), arr(size, 0)
   {
   }
+
   uint8_t get(uint64_t index)
   {
     if (index < len)
@@ -44,12 +45,7 @@ struct Color
   uint8_t a;
 };
 
-struct CellChange
-{
-  uint64_t row;
-  uint64_t col;
-  Color color;
-};
+
 
 class Grid
 {
@@ -100,6 +96,14 @@ public:
   void applyChanges();
 
   Buffer m_data;
+
+  struct CellChange
+  {
+    uint64_t row;
+    uint64_t col;
+    Color color;
+  };
+  
 private:
   std::vector<CellChange> m_changes; // for writing
   uint64_t m_width;

@@ -1,6 +1,10 @@
-# Format Style Options - Created with Clang Power Tools
 ---
+AlignAfterOpenBracket: BAS_Align
+AlignOperands: OAS_Align
 AlignTrailingComments: false
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
+AllowShortBlocksOnASingleLine: SBS_Always
 BasedOnStyle: Microsoft
 ColumnLimit: 80
 ConstructorInitializerAllOnOneLineOrOnePerLine: true

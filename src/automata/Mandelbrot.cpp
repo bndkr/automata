@@ -29,8 +29,8 @@ double normalizeIteration(double input)
 
 namespace mandelbrot
 {
-
-void mandelbrot::showAutomataWindow(Grid& grid, FractalBounds window,
+void mandelbrot::showAutomataWindow(Grid& grid,
+                                    FractalBounds window,
                                     Int2 imageSize,
                                     ID3D11ShaderResourceView* view)
 {
@@ -123,6 +123,7 @@ void mandelbrot::showAutomataWindow(Grid& grid, FractalBounds window,
         grid.clear();
         updateView = true;
       }
+      // this needs to be fixed...
       numInterpolatedColors = item_current + 2;
       if (ImGui::ColorEdit4("color 0", (float*)&(color0),
                             ImGuiColorEditFlags_NoInputs) ||
@@ -150,7 +151,7 @@ void mandelbrot::showAutomataWindow(Grid& grid, FractalBounds window,
 
   if (updateView)
   {
-    updateGrid(smooth);
+    updateGrid(numThreads, window, grid, palette, minDistance);
   }
   updateView = false;
 
@@ -234,8 +235,10 @@ void mandelbrot::showAutomataWindow(Grid& grid, FractalBounds window,
 }
 
 // should be called once per frame
-void mandelbrot::loadGrid(Grid& grid, ID3D11Device* device,
-                          const Int2 imageSize, ID3D11ShaderResourceView* view,
+void mandelbrot::loadGrid(Grid& grid,
+                          ID3D11Device* device,
+                          const Int2 imageSize,
+                          ID3D11ShaderResourceView* view,
                           ID3D11Texture2D* texture)
 {
   if (texture)
@@ -247,16 +250,27 @@ void mandelbrot::loadGrid(Grid& grid, ID3D11Device* device,
                                 imageSize.x, imageSize.y);
 }
 
-void mandelbrot::updateGrid(Smooth smooth, const uint32_t numThreads)
+void mandelbrot::updateGrid(const Smooth smooth,
+                            const uint32_t numThreads,
+                            const FractalBounds& window,
+                            Grid& rGrid,
+                            const Palette& palette,
+                            const float minDistance)
 {
   std::vector<std::future<bool>> futures;
   for (uint32_t i = 0; i < numThreads; i++)
   {
     futures.push_back(std::async(std::launch::async,
-                                 &mandelbrot::getMandelbrotPixels, this, i,
-                                 numThreads, smooth));
+                                 &getMandelbrotPixels,
+                                 i,
+                                 numThreads,
+                                 smooth,
+                                 window,
+                                 rGrid,
+                                 maxIterations,
+                                 palette,
+                                 minDistance));
   }
-
   for (auto&& future : futures)
   {
     auto result = future.get();
@@ -288,9 +302,12 @@ Palette mandelbrot::updatePalette(std::vector<Color> colorList, const uint32_t n
 bool mandelbrot::getMandelbrotPixels(const uint32_t offset,
                                      const uint32_t numWorkers,
                                      const Smooth smooth,
-                                     const FractalBounds window, Grid& grid,
+                                     const FractalBounds window,
+                                     Grid& grid,
                                      const uint32_t maxIterations,
-                                     const Int2 imageSize, Palette palette)
+                                     const Int2 imageSize,
+                                     Palette palette,
+                                     const float minDistance)
 {
   for (uint32_t x = 0; x < imageSize.x; x++)
   {
@@ -313,7 +330,7 @@ bool mandelbrot::getMandelbrotPixels(const uint32_t offset,
         {
           if (smooth == Smooth::Distance)
           {
-            if (result < m_minDistance)
+            if (result < minDistance)
             {
               grid.setCellDirectly(y, x, imvec4ToColor(m_distanceColor));
             }
