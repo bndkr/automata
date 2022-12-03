@@ -27,30 +27,16 @@ double normalizeIteration(double input)
 }
 } // namespace
 
-Mandelbrot::Mandelbrot(uint64_t height, uint64_t width, ID3D11Device* pDevice)
-  : m_height(height),
-    m_width(width),
-    m_xmin(-2.0),
-    m_xmax(2.0),
-    m_ymin(-1.0),
-    m_ymax(1.0),
-    m_iterations(100),
-    m_palette(240), // this must be divisible by 12 (3 and 4)
-    m_numThreads(std::thread::hardware_concurrency()),
-    m_grid(width, height),
-    m_pDevice(pDevice),
-    m_texture(NULL),
-    m_view(NULL),
-    m_minDistance(0.001),
-    m_setColor(ImVec4{0, 0, 0, 1}),
-    m_distanceColor(ImVec4{1, 1, 1, 1})
+namespace mandelbrot
 {
-  loadGrid();
-}
 
-void Mandelbrot::showAutomataWindow()
+void mandelbrot::showAutomataWindow(Grid& grid, FractalBounds window,
+                                    Int2 imageSize,
+                                    ID3D11ShaderResourceView* view)
 {
   static bool displayRuleMenu = false;
+  // dumb solution
+  static int iterations = 1000;
 
   static uint32_t mouseX;
   static uint32_t mouseY;
@@ -58,8 +44,10 @@ void Mandelbrot::showAutomataWindow()
   static bool updateView = true;
   static Smooth smooth = Smooth::Distance;
   static bool debug;
+  static float minDistance;
 
-  const char* smoothList[] = {"None", "Linear", "Logarithmic", "Distance Estimate"};
+  const char* smoothList[] = {"None", "Linear", "Logarithmic",
+                              "Distance Estimate"};
   static int smoothIdx = smooth;
   static int numInterpolatedColors = 2;
   const char* items[] = {"2", "3", "4"};
@@ -81,9 +69,9 @@ void Mandelbrot::showAutomataWindow()
 
     ImGui::Checkbox("Debug Info", &debug);
 
-    if (ImGui::SliderInt("Iterations", &m_iterations, 0, 2000))
+    if (ImGui::SliderInt("Iterations", &iterations, 0, 2000))
     {
-      m_grid.clear();
+      grid.clear();
       updateView = true;
     }
 
@@ -92,30 +80,29 @@ void Mandelbrot::showAutomataWindow()
     {
       smooth = (Smooth)smoothIdx;
       updateView = true;
-      m_grid.clear();
+      grid.clear();
     }
 
     if (ImGui::ColorEdit4("Inside Color", (float*)&(m_setColor),
-      ImGuiColorEditFlags_NoInputs))
+                          ImGuiColorEditFlags_NoInputs))
     {
       updateView = true;
-      m_grid.clear();
+      grid.clear();
     }
-    
+
     if (smooth == Smooth::Distance)
     {
-      if (ImGui::SliderFloat("Distance", &m_minDistance, 0.0f, 0.1f, "%.12f",
+      if (ImGui::SliderFloat("Distance", &minDistance, 0.0f, 0.1f, "%.12f",
                              ImGuiSliderFlags_Logarithmic))
       {
-        m_grid.clear();
+        grid.clear();
         updateView = true;
       }
 
-      if (ImGui::ColorEdit4(
-            "Distance Color",
-            (float*)&(m_distanceColor), ImGuiColorEditFlags_NoInputs))
+      if (ImGui::ColorEdit4("Distance Color", (float*)&(m_distanceColor),
+                            ImGuiColorEditFlags_NoInputs))
       {
-        m_grid.clear();
+        grid.clear();
         updateView = true;
       }
     }
@@ -125,14 +112,15 @@ void Mandelbrot::showAutomataWindow()
                        IM_ARRAYSIZE(items)))
       {
         if (numInterpolatedColors == 2)
-          updatePalette({imvec4ToColor(color0), imvec4ToColor(color1)});
+          // another dump dum dumb soluton, remember to apply below
+          updatePalette({imvec4ToColor(color0), imvec4ToColor(color1)}, 120); 
         if (numInterpolatedColors == 3)
           updatePalette({imvec4ToColor(color0), imvec4ToColor(color1),
-                         imvec4ToColor(color2)});
+                         imvec4ToColor(color2)}, 120);
         if (numInterpolatedColors == 4)
           updatePalette({imvec4ToColor(color0), imvec4ToColor(color1),
-                         imvec4ToColor(color2), imvec4ToColor(color3)});
-        m_grid.clear();
+                         imvec4ToColor(color2), imvec4ToColor(color3)}, 120);
+        grid.clear();
         updateView = true;
       }
       numInterpolatedColors = item_current + 2;
@@ -153,7 +141,7 @@ void Mandelbrot::showAutomataWindow()
         if (numInterpolatedColors == 4)
           updatePalette({imvec4ToColor(color0), imvec4ToColor(color1),
                          imvec4ToColor(color2), imvec4ToColor(color3)});
-        m_grid.clear();
+        grid.clear();
         updateView = true;
       }
     }
@@ -166,7 +154,7 @@ void Mandelbrot::showAutomataWindow()
   }
   updateView = false;
 
-  ImGui::Image((void*)m_view, ImVec2(m_width, m_height));
+  ImGui::Image((void*)view, ImVec2(imageSize.x, imageSize.y));
 
   auto mousePositionAbsolute = ImGui::GetMousePos();
   auto screenPositionAbsolute = ImGui::GetItemRectMin();
@@ -177,8 +165,10 @@ void Mandelbrot::showAutomataWindow()
   mouseX = mousePositionAbsolute.x - screenPositionAbsolute.x;
   mouseY = mousePositionAbsolute.y - screenPositionAbsolute.y;
 
-  double complexX = (mouseX * ((m_xmax - m_xmin) / m_width)) + m_xmin;
-  double complexY = -((mouseY * ((m_ymax - m_ymin) / m_height)) + m_ymin);
+  double complexX =
+    (mouseX * ((window.xmax - window.xmin) / imageSize.x)) + window.xmin;
+  double complexY =
+    -((mouseY * ((window.ymax - window.ymin) / imageSize.y)) + window.ymin);
   // negative because the top left corner is (0,0), not the bottom left corner
 
   static bool wasDragging = false;
@@ -189,39 +179,41 @@ void Mandelbrot::showAutomataWindow()
     ImGui::ResetMouseDragDelta();
     if (dragDelta.x != 0 || dragDelta.y != 0)
     {
-      auto complexDiffX = dragDelta.x * ((m_xmax - m_xmin) / m_width);
-      auto complexDiffY = dragDelta.y * ((m_ymax - m_ymin) / m_height);
+      auto complexDiffX =
+        dragDelta.x * ((window.xmax - window.xmin) / imageSize.x);
+      auto complexDiffY =
+        dragDelta.y * ((window.ymax - window.ymin) / imageSize.y);
 
-      m_xmin -= complexDiffX;
-      m_xmax -= complexDiffX;
-      m_ymin -= complexDiffY;
-      m_ymax -= complexDiffY;
+      window.xmin -= complexDiffX;
+      window.xmax -= complexDiffX;
+      window.ymin -= complexDiffY;
+      window.ymax -= complexDiffY;
 
       updateView = true;
       wasDragging = true;
-      m_grid.translate(dragDelta.x, dragDelta.y);
+      grid.translate(dragDelta.x, dragDelta.y);
     }
   }
   // zoom in
   if (hovering && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && !wasDragging)
   {
-    m_xmin = (m_xmin + complexX) / 2;
-    m_xmax = (m_xmax + complexX) / 2;
+    window.xmin = (window.xmin + complexX) / 2;
+    window.xmax = (window.xmax + complexX) / 2;
 
-    m_ymin = (m_ymin - complexY) / 2;
-    m_ymax = (m_ymax - complexY) / 2;
-    m_grid.clear();
+    window.ymin = (window.ymin - complexY) / 2;
+    window.ymax = (window.ymax - complexY) / 2;
+    grid.clear();
     updateView = true;
   }
   // zoom out
   if (hovering && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
   {
-    m_xmin -= (complexX - m_xmin);
-    m_xmax += (m_xmax - complexX);
+    window.xmin -= (complexX - window.xmin);
+    window.xmax += (window.xmax - complexX);
 
-    m_ymin += (complexY + m_ymin);
-    m_ymax += (m_ymax + complexY);
-    m_grid.clear();
+    window.ymin += (complexY + window.ymin);
+    window.ymax += (window.ymax + complexY);
+    grid.clear();
     updateView = true;
   }
 
@@ -232,7 +224,7 @@ void Mandelbrot::showAutomataWindow()
 
   if (hovering && debug)
   {
-    auto result = calculatePixel(complexX, complexY, smooth);
+    auto result = calculatePixel(complexX, complexY, smooth, iterations);
     ImGui::Text("Screen space: x:%d, y:%d", mouseX, mouseY);
     ImGui::Text("Complex space: x:%f, y:%f", complexX, complexY);
     ImGui::Text("Iterations: %f", result);
@@ -242,25 +234,27 @@ void Mandelbrot::showAutomataWindow()
 }
 
 // should be called once per frame
-void Mandelbrot::loadGrid()
+void mandelbrot::loadGrid(Grid& grid, ID3D11Device* device,
+                          const Int2 imageSize, ID3D11ShaderResourceView* view,
+                          ID3D11Texture2D* texture)
 {
-  if (m_texture)
-    m_texture->Release();
-  if (m_view)
-    m_view->Release();
+  if (texture)
+    texture->Release();
+  if (view)
+    view->Release();
 
-  automata::LoadTextureFromData(m_grid.getData(), &m_view, &m_texture,
-                                m_pDevice, m_width, m_height);
+  automata::LoadTextureFromData(grid.getData(), &view, &texture, device,
+                                imageSize.x, imageSize.y);
 }
 
-void Mandelbrot::updateGrid(Smooth smooth)
+void mandelbrot::updateGrid(Smooth smooth, const uint32_t numThreads)
 {
   std::vector<std::future<bool>> futures;
-  for (uint32_t i = 0; i < m_numThreads; i++)
+  for (uint32_t i = 0; i < numThreads; i++)
   {
     futures.push_back(std::async(std::launch::async,
-                                 &Mandelbrot::getMandelbrotPixels, this, i,
-                                 m_numThreads, smooth));
+                                 &mandelbrot::getMandelbrotPixels, this, i,
+                                 numThreads, smooth));
   }
 
   for (auto&& future : futures)
@@ -272,8 +266,9 @@ void Mandelbrot::updateGrid(Smooth smooth)
   loadGrid();
 }
 
-void Mandelbrot::updatePalette(std::vector<Color> colorList)
+Palette mandelbrot::updatePalette(std::vector<Color> colorList, const uint32_t numColors)
 {
+  auto p = Palette(numColors);
   if (colorList.size() < 2 || colorList.size() > 4)
   {
     throw std::runtime_error("cannot interpolate between" +
@@ -281,30 +276,38 @@ void Mandelbrot::updatePalette(std::vector<Color> colorList)
   }
 
   if (colorList.size() == 2)
-    m_palette.interpolate(colorList[0], colorList[1]);
+    p.interpolate(colorList[0], colorList[1]);
   if (colorList.size() == 3)
-    m_palette.interpolate(colorList[0], colorList[1], colorList[2]);
+    p.interpolate(colorList[0], colorList[1], colorList[2]);
   if (colorList.size() == 4)
-    m_palette.interpolate(colorList[0], colorList[1], colorList[2],
+    p.interpolate(colorList[0], colorList[1], colorList[2],
                           colorList[3]);
+  return p;
 }
 
-bool Mandelbrot::getMandelbrotPixels(uint32_t offset, uint32_t numWorkers, Smooth smooth)
+bool mandelbrot::getMandelbrotPixels(const uint32_t offset,
+                                     const uint32_t numWorkers,
+                                     const Smooth smooth,
+                                     const FractalBounds window, Grid& grid,
+                                     const uint32_t maxIterations,
+                                     const Int2 imageSize, Palette palette)
 {
-  for (uint32_t x = 0; x < m_width; x++)
+  for (uint32_t x = 0; x < imageSize.x; x++)
   {
-    for (uint32_t y = offset; y < m_height; y += numWorkers)
+    for (uint32_t y = offset; y < imageSize.y; y += numWorkers)
     {
-      if (!m_grid.checkCell(y, x)) // only update pixels that are empty
+      if (!grid.checkCell(y, x)) // only update pixels that are empty
       {
         // translate from pixel space to our virtual space
-        double v_x = m_xmin + ((m_xmax - m_xmin) / m_width) * x;
-        double v_y = m_ymin + ((m_ymax - m_ymin) / m_height) * y;
+        double v_x =
+          window.xmin + ((window.xmax - window.xmin) / imageSize.x) * x;
+        double v_y =
+          window.ymin + ((window.ymax - window.ymin) / imageSize.y) * y;
 
-        double result = calculatePixel(v_x, v_y, smooth);
+        double result = calculatePixel(v_x, v_y, smooth, maxIterations);
         if (result == -1.0)
         {
-          m_grid.setCellDirectly(y, x, imvec4ToColor(m_setColor));
+          grid.setCellDirectly(y, x, imvec4ToColor(m_setColor));
         }
         else
         {
@@ -312,24 +315,24 @@ bool Mandelbrot::getMandelbrotPixels(uint32_t offset, uint32_t numWorkers, Smoot
           {
             if (result < m_minDistance)
             {
-              m_grid.setCellDirectly(y, x, imvec4ToColor(m_distanceColor));
+              grid.setCellDirectly(y, x, imvec4ToColor(m_distanceColor));
             }
           }
           else
           {
             result = normalizeIteration(result);
             double gradient = result - (int)result;
-            int step = (int)result % m_palette.numColors;
-            int nextStep = (step + 1) % m_palette.numColors;
-            auto baseColor = m_palette.getColor(step);
-            auto nextColor = m_palette.getColor(nextStep);
+            int step = (int)result % palette.numColors;
+            int nextStep = (step + 1) % palette.numColors;
+            auto baseColor = palette.getColor(step);
+            auto nextColor = palette.getColor(nextStep);
             // interpolate between baseColor and nextColor
             auto newColor = Color{
               (uint8_t)(baseColor.r + (nextColor.r - baseColor.r) * gradient),
               (uint8_t)(baseColor.g + (nextColor.g - baseColor.g) * gradient),
               (uint8_t)(baseColor.b + (nextColor.b - baseColor.b) * gradient),
               255};
-            m_grid.setCellDirectly(y, x, newColor);
+            grid.setCellDirectly(y, x, newColor);
           }
         }
       }
@@ -338,61 +341,64 @@ bool Mandelbrot::getMandelbrotPixels(uint32_t offset, uint32_t numWorkers, Smoot
   return true;
 }
 
-double Mandelbrot::calculatePixel(double x_0, double y_0, Smooth smooth)
+double mandelbrot::calculatePixel(const double x_0, const double y_0,
+                                  const Smooth smooth,
+                                  const uint32_t maxIterations)
 {
   // cardioid check
   double p = sqrt((x_0 - 0.25) * (x_0 - 0.25) + y_0 * y_0);
   if (x_0 <= p - (2 * p * p) + 0.25)
     return -1;
- 
+
   // period 2 bulb check
   if ((x_0 + 1) * (x_0 + 1) + y_0 * y_0 <= 1.0 / 16)
     return -1;
 
   double z_x = 0;
   double z_y = 0;
-  
+
   double before_x = 0;
   double before_y = 0;
-  
+
   double x_2 = 0;
   double y_2 = 0;
-  
+
   double dz_x = 1;
   double dz_y = 0;
 
   uint32_t iteration = 0;
+
   while (x_2 + y_2 < (smooth == Smooth::Logarithmic ? 16 : 4) &&
-         iteration < m_iterations)
+         iteration < maxIterations)
   {
-     before_x = z_x;
-     before_y = z_y;
-     
-     // iterate: z = z^2 + c
-     z_y = 2 * z_x * z_y + y_0;
-     z_x = x_2 - y_2 + x_0;
-     x_2 = z_x * z_x;
-     y_2 = z_y * z_y;
-     
-     if (smooth == Smooth::Distance)
-     {
-       double dz_x_new = 2 * (z_x * dz_x - z_y * dz_y) + 1;
-       double dz_y_new = 2 * (z_y * dz_x + z_x * dz_y);
-     
-       dz_x = dz_x_new;
-       dz_y = dz_y_new;
-     }
+    before_x = z_x;
+    before_y = z_y;
+
+    // iterate: z = z^2 + c
+    z_y = 2 * z_x * z_y + y_0;
+    z_x = x_2 - y_2 + x_0;
+    x_2 = z_x * z_x;
+    y_2 = z_y * z_y;
+
+    if (smooth == Smooth::Distance)
+    {
+      double dz_x_new = 2 * (z_x * dz_x - z_y * dz_y) + 1;
+      double dz_y_new = 2 * (z_y * dz_x + z_x * dz_y);
+
+      dz_x = dz_x_new;
+      dz_y = dz_y_new;
+    }
 
     iteration++;
   }
-  if (iteration == m_iterations)
+  if (iteration == maxIterations)
   {
     return -1; // inside the mandelbrot set
   }
   if (smooth == Smooth::Linear)
   {
     double ratio = (sqrt(x_2 + y_2) - 2) /
-                    (2 - sqrt(before_x * before_x + before_y * before_y));
+                   (2 - sqrt(before_x * before_x + before_y * before_y));
     double gradient = 1 / (ratio + 1);
     return iteration + gradient;
   }
@@ -409,3 +415,5 @@ double Mandelbrot::calculatePixel(double x_0, double y_0, Smooth smooth)
   }
   return iteration;
 }
+}
+
