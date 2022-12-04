@@ -43,8 +43,15 @@ void mandelbrot::showAutomataWindow(Grid& grid,
 
   static bool updateView = true;
   static Smooth smooth = Smooth::Distance;
-  static bool debug;
-  static float minDistance;
+  static bool debug = true;
+  static float minDistance = 0.01f;
+
+  static ID3D11ShaderResourceView* pView = NULL;
+  static ID3D11Texture2D* pTexture = NULL;
+  static ID3D11Device* pDevice = NULL;
+
+  static Palette palette(120);
+  static uint32_t numThreads(std::thread::hardware_concurrency());
 
   const char* smoothList[] = {"None", "Linear", "Logarithmic",
                               "Distance Estimate"};
@@ -135,13 +142,15 @@ void mandelbrot::showAutomataWindow(Grid& grid,
                             ImGuiColorEditFlags_NoInputs))
       {
         if (numInterpolatedColors == 2)
-          updatePalette({imvec4ToColor(color0), imvec4ToColor(color1)});
+          updatePalette({imvec4ToColor(color0), imvec4ToColor(color1)}, 120);
         if (numInterpolatedColors == 3)
           updatePalette({imvec4ToColor(color0), imvec4ToColor(color1),
-                         imvec4ToColor(color2)});
+                         imvec4ToColor(color2)},
+                        120);
         if (numInterpolatedColors == 4)
           updatePalette({imvec4ToColor(color0), imvec4ToColor(color1),
-                         imvec4ToColor(color2), imvec4ToColor(color3)});
+                         imvec4ToColor(color2), imvec4ToColor(color3)},
+                        120);
         grid.clear();
         updateView = true;
       }
@@ -151,7 +160,8 @@ void mandelbrot::showAutomataWindow(Grid& grid,
 
   if (updateView)
   {
-    updateGrid(numThreads, window, grid, palette, minDistance);
+    updateGrid(smooth, numThreads, window, grid, palette, minDistance,
+               iterations, imageSize, pView, pTexture, pDevice);
   }
   updateView = false;
 
@@ -250,26 +260,19 @@ void mandelbrot::loadGrid(Grid& grid,
                                 imageSize.x, imageSize.y);
 }
 
-void mandelbrot::updateGrid(const Smooth smooth,
-                            const uint32_t numThreads,
-                            const FractalBounds& window,
-                            Grid& rGrid,
-                            const Palette& palette,
-                            const float minDistance)
+void mandelbrot::updateGrid(const Smooth smooth, const uint32_t numThreads,
+                            const FractalBounds& window, Grid& rGrid,
+                            Palette& palette, const float minDistance,
+                            const uint32_t maxIterations, const Int2 imageSize,
+                            ID3D11ShaderResourceView* pView,
+                            ID3D11Texture2D* pTexture, ID3D11Device* pDevice)
 {
   std::vector<std::future<bool>> futures;
   for (uint32_t i = 0; i < numThreads; i++)
   {
-    futures.push_back(std::async(std::launch::async,
-                                 &getMandelbrotPixels,
-                                 i,
-                                 numThreads,
-                                 smooth,
-                                 window,
-                                 rGrid,
-                                 maxIterations,
-                                 palette,
-                                 minDistance));
+    futures.push_back(std::async(std::launch::async, &getMandelbrotPixels, i,
+                                 numThreads, smooth, window, rGrid,
+                                 maxIterations, imageSize, palette, minDistance));
   }
   for (auto&& future : futures)
   {
@@ -277,7 +280,7 @@ void mandelbrot::updateGrid(const Smooth smooth,
     if (!result)
       throw std::runtime_error("fractal generation failed");
   }
-  loadGrid();
+  loadGrid(rGrid, pDevice, imageSize, pView, pTexture);
 }
 
 Palette mandelbrot::updatePalette(std::vector<Color> colorList, const uint32_t numColors)
@@ -306,7 +309,7 @@ bool mandelbrot::getMandelbrotPixels(const uint32_t offset,
                                      Grid& grid,
                                      const uint32_t maxIterations,
                                      const Int2 imageSize,
-                                     Palette palette,
+                                     Palette& palette,
                                      const float minDistance)
 {
   for (uint32_t x = 0; x < imageSize.x; x++)
