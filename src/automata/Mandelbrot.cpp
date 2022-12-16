@@ -31,9 +31,9 @@ namespace mandelbrot
 {
 void mandelbrot::showAutomataWindow(ID3D11Device* pDevice)
 {
-  static Grid grid(500, 1000);
+  static Grid grid(1000, 500);
   static FractalBounds window{-2.0, 1.0, -1.0, 1.0};
-  static Int2 imageSize{500, 1000};
+  static Int2 imageSize{1000, 500};
 
 
   static bool displayRuleMenu = false;
@@ -55,7 +55,7 @@ void mandelbrot::showAutomataWindow(ID3D11Device* pDevice)
   static ImVec4 distanceColor = {1, 1, 1, 1};
 
   static Palette palette(120);
-  static uint32_t numThreads(std::thread::hardware_concurrency());
+  static uint32_t numThreads(1); // std::thread::hardware_concurrency()
 
   const char* smoothList[] = {"None", "Linear", "Logarithmic",
                               "Distance Estimate"};
@@ -165,9 +165,9 @@ void mandelbrot::showAutomataWindow(ID3D11Device* pDevice)
   if (updateView)
   {
     updateGrid(smooth, numThreads, window, grid, palette, minDistance,
-               iterations, imageSize, pView, pTexture, pDevice, setColor, distanceColor);
+               iterations, imageSize, &pView, &pTexture, pDevice, setColor, distanceColor);
   }
-  updateView = false;
+  // updateView = false;
 
   ImGui::Image((void*)pView, ImVec2(imageSize.x, imageSize.y));
 
@@ -252,15 +252,15 @@ void mandelbrot::showAutomataWindow(ID3D11Device* pDevice)
 void mandelbrot::loadGrid(Grid& grid,
                           ID3D11Device* device,
                           const Int2 imageSize,
-                          ID3D11ShaderResourceView* view,
-                          ID3D11Texture2D* texture)
+                          ID3D11ShaderResourceView** pView,
+                          ID3D11Texture2D** pTexture)
 {
-  if (texture)
-    texture->Release();
-  if (view)
-    view->Release();
+  if (*pTexture)
+    (*pTexture)->Release();
+  if (*pView)
+    (*pView)->Release();
 
-  automata::LoadTextureFromData(grid.getData(), &view, &texture, device,
+  automata::LoadTextureFromData(grid.getData(), pView, pTexture, device,
                                 imageSize.x, imageSize.y);
 }
 
@@ -268,8 +268,8 @@ void mandelbrot::updateGrid(const Smooth smooth, const uint32_t numThreads,
                             const FractalBounds& window, Grid& rGrid,
                             Palette& palette, const float minDistance,
                             const uint32_t maxIterations, const Int2 imageSize,
-                            ID3D11ShaderResourceView* pView,
-                            ID3D11Texture2D* pTexture, ID3D11Device* pDevice,
+                            ID3D11ShaderResourceView** pView,
+                            ID3D11Texture2D** pTexture, ID3D11Device* pDevice,
                             const ImVec4& setColor,
                             const ImVec4& distanceColor)
 {

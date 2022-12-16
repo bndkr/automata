@@ -36,13 +36,13 @@ namespace mandelbrot
   void showAutomataWindow(ID3D11Device* pDevice);
 
   void loadGrid(Grid& grid, ID3D11Device* device, const Int2 imageSize,
-                ID3D11ShaderResourceView* view, ID3D11Texture2D* texture);
+                ID3D11ShaderResourceView** pView, ID3D11Texture2D** pTexture);
 
   void updateGrid(const Smooth smooth, const uint32_t numThreads,
                   const FractalBounds& window, Grid& rGrid, Palette& palette,
                   const float minDistance, const uint32_t maxIterations,
-                  const Int2 imageSize, ID3D11ShaderResourceView* pView,
-                  ID3D11Texture2D* pTexture, ID3D11Device* pDevice,
+                  const Int2 imageSize, ID3D11ShaderResourceView** pView,
+                  ID3D11Texture2D** pTexture, ID3D11Device* pDevice,
                   const ImVec4& setColor, const ImVec4& distanceColor);
 
   Palette updatePalette(std::vector<Color> colorList, const uint32_t numColors);
