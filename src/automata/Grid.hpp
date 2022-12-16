@@ -51,7 +51,7 @@ public:
   Grid(uint64_t width, uint64_t height)
     : m_width(width), m_height(height), m_data(width * height * 4)
   {
-    m_data.fill(255);
+    m_data.fill(0);
   }
 
   uint8_t* getData()

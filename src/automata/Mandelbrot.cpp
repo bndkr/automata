@@ -32,7 +32,7 @@ namespace mandelbrot
 void mandelbrot::showAutomataWindow(ID3D11Device* pDevice)
 {
   static Grid grid(1000, 500);
-  static FractalBounds window{-2.0, 1.0, -1.0, 1.0};
+  static FractalBounds window{-2.0, 2.0, -1.0, 1.0};
   static Int2 imageSize{1000, 500};
 
 
@@ -44,18 +44,18 @@ void mandelbrot::showAutomataWindow(ID3D11Device* pDevice)
   static uint32_t mouseY;
 
   static bool updateView = true;
-  static Smooth smooth = Smooth::Distance;
+  static Smooth smooth = Smooth::Linear;
   static bool debug = true;
   static float minDistance = 0.01f;
 
   static ID3D11ShaderResourceView* pView = NULL;
   static ID3D11Texture2D* pTexture = NULL;
   
-  static ImVec4 setColor = {1, 0, 0, 1};
+  static ImVec4 setColor = {0, 0, 0, 1};
   static ImVec4 distanceColor = {1, 1, 1, 1};
 
   static Palette palette(120);
-  static uint32_t numThreads(1); // std::thread::hardware_concurrency()
+  static uint32_t numThreads(std::thread::hardware_concurrency());
 
   const char* smoothList[] = {"None", "Linear", "Logarithmic",
                               "Distance Estimate"};
@@ -164,7 +164,7 @@ void mandelbrot::showAutomataWindow(ID3D11Device* pDevice)
 
   if (updateView)
   {
-    updateGrid(smooth, numThreads, window, grid, palette, minDistance,
+    updateGrid(smooth, numThreads, window, &grid, palette, minDistance,
                iterations, imageSize, &pView, &pTexture, pDevice, setColor, distanceColor);
   }
   // updateView = false;
@@ -249,7 +249,7 @@ void mandelbrot::showAutomataWindow(ID3D11Device* pDevice)
 }
 
 // should be called once per frame
-void mandelbrot::loadGrid(Grid& grid,
+void mandelbrot::loadGrid(Grid* pGrid,
                           ID3D11Device* device,
                           const Int2 imageSize,
                           ID3D11ShaderResourceView** pView,
@@ -260,12 +260,12 @@ void mandelbrot::loadGrid(Grid& grid,
   if (*pView)
     (*pView)->Release();
 
-  automata::LoadTextureFromData(grid.getData(), pView, pTexture, device,
+  automata::LoadTextureFromData(pGrid->getData(), pView, pTexture, device,
                                 imageSize.x, imageSize.y);
 }
 
 void mandelbrot::updateGrid(const Smooth smooth, const uint32_t numThreads,
-                            const FractalBounds& window, Grid& rGrid,
+                            const FractalBounds& window, Grid* pGrid,
                             Palette& palette, const float minDistance,
                             const uint32_t maxIterations, const Int2 imageSize,
                             ID3D11ShaderResourceView** pView,
@@ -277,7 +277,7 @@ void mandelbrot::updateGrid(const Smooth smooth, const uint32_t numThreads,
   for (uint32_t i = 0; i < numThreads; i++)
   {
     futures.push_back(std::async(std::launch::async, &getMandelbrotPixels, i,
-                                 numThreads, smooth, window, rGrid,
+                                 numThreads, smooth, window, pGrid,
                                  maxIterations, imageSize, palette, minDistance,
                                  setColor, distanceColor));
   }
@@ -287,7 +287,7 @@ void mandelbrot::updateGrid(const Smooth smooth, const uint32_t numThreads,
     if (!result)
       throw std::runtime_error("fractal generation failed");
   }
-  loadGrid(rGrid, pDevice, imageSize, pView, pTexture);
+  loadGrid(pGrid, pDevice, imageSize, pView, pTexture);
 }
 
 Palette mandelbrot::updatePalette(std::vector<Color> colorList, const uint32_t numColors)
@@ -311,7 +311,7 @@ Palette mandelbrot::updatePalette(std::vector<Color> colorList, const uint32_t n
 
 bool mandelbrot::getMandelbrotPixels(
   const uint32_t offset, const uint32_t numWorkers, const Smooth smooth,
-  const FractalBounds window, Grid& grid, const uint32_t maxIterations,
+  const FractalBounds window, Grid* pGrid, const uint32_t maxIterations,
   const Int2 imageSize, Palette& palette, const float minDistance,
   const ImVec4& setColor, const ImVec4& distanceColor)
 {
@@ -319,7 +319,7 @@ bool mandelbrot::getMandelbrotPixels(
   {
     for (uint32_t y = offset; y < imageSize.y; y += numWorkers)
     {
-      if (!grid.checkCell(y, x)) // only update pixels that are empty
+      if (!pGrid->checkCell(y, x)) // only update pixels that are empty
       {
         // translate from pixel space to our virtual space
         double v_x =
@@ -330,7 +330,7 @@ bool mandelbrot::getMandelbrotPixels(
         double result = calculatePixel(v_x, v_y, smooth, maxIterations);
         if (result == -1.0)
         {
-          grid.setCellDirectly(y, x, imvec4ToColor(setColor));
+          pGrid->setCellDirectly(y, x, imvec4ToColor(setColor));
         }
         else
         {
@@ -338,7 +338,7 @@ bool mandelbrot::getMandelbrotPixels(
           {
             if (result < minDistance)
             {
-              grid.setCellDirectly(y, x, imvec4ToColor(distanceColor));
+              pGrid->setCellDirectly(y, x, imvec4ToColor(distanceColor));
             }
           }
           else
@@ -355,7 +355,7 @@ bool mandelbrot::getMandelbrotPixels(
               (uint8_t)(baseColor.g + (nextColor.g - baseColor.g) * gradient),
               (uint8_t)(baseColor.b + (nextColor.b - baseColor.b) * gradient),
               255};
-            grid.setCellDirectly(y, x, newColor);
+            pGrid->setCellDirectly(y, x, newColor);
           }
         }
       }

@@ -35,11 +35,11 @@ namespace mandelbrot
 
   void showAutomataWindow(ID3D11Device* pDevice);
 
-  void loadGrid(Grid& grid, ID3D11Device* device, const Int2 imageSize,
+  void loadGrid(Grid* pGrid, ID3D11Device* device, const Int2 imageSize,
                 ID3D11ShaderResourceView** pView, ID3D11Texture2D** pTexture);
 
   void updateGrid(const Smooth smooth, const uint32_t numThreads,
-                  const FractalBounds& window, Grid& rGrid, Palette& palette,
+                  const FractalBounds& window, Grid* rGrid, Palette& palette,
                   const float minDistance, const uint32_t maxIterations,
                   const Int2 imageSize, ID3D11ShaderResourceView** pView,
                   ID3D11Texture2D** pTexture, ID3D11Device* pDevice,
@@ -49,7 +49,7 @@ namespace mandelbrot
 
   bool getMandelbrotPixels(const uint32_t offset, const uint32_t numWorkers,
                            const Smooth smooth, const FractalBounds window,
-                           Grid& grid, const uint32_t maxIterations,
+                           Grid* pGrid, const uint32_t maxIterations,
                            const Int2 imageSize, Palette& palette,
                            const float minDistance, const ImVec4& setColor,
                            const ImVec4& distanceColor);
