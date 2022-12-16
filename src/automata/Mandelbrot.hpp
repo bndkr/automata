@@ -33,8 +33,7 @@ namespace mandelbrot
 {
   // mandelbrot(uint64_t height, uint64_t width, ID3D11Device* pDevice);
 
-  void showAutomataWindow(Grid& grid, FractalBounds window, Int2 imageSize,
-                        ID3D11ShaderResourceView* view);
+  void showAutomataWindow(ID3D11Device* pDevice);
 
   void loadGrid(Grid& grid, ID3D11Device* device, const Int2 imageSize,
                 ID3D11ShaderResourceView* view, ID3D11Texture2D* texture);
@@ -43,7 +42,8 @@ namespace mandelbrot
                   const FractalBounds& window, Grid& rGrid, Palette& palette,
                   const float minDistance, const uint32_t maxIterations,
                   const Int2 imageSize, ID3D11ShaderResourceView* pView,
-                  ID3D11Texture2D* pTexture, ID3D11Device* pDevice);
+                  ID3D11Texture2D* pTexture, ID3D11Device* pDevice,
+                  const ImVec4& setColor, const ImVec4& distanceColor);
 
   Palette updatePalette(std::vector<Color> colorList, const uint32_t numColors);
 
@@ -51,7 +51,8 @@ namespace mandelbrot
                            const Smooth smooth, const FractalBounds window,
                            Grid& grid, const uint32_t maxIterations,
                            const Int2 imageSize, Palette& palette,
-                           const float minDistance);
+                           const float minDistance, const ImVec4& setColor,
+                           const ImVec4& distanceColor);
 
   double calculatePixel(const double x_0, const double y_0, const Smooth smooth,
                         const uint32_t maxIterations);
@@ -69,9 +70,9 @@ namespace mandelbrot
   // ID3D11Device* m_pDevice;
   // ID3D11ShaderResourceView* m_view;
   // ID3D11Texture2D* m_texture;
-  float m_minDistance;
-  ImVec4 m_setColor;
-  ImVec4 m_distanceColor;
+  // float m_minDistance;
+  //ImVec4 m_setColor;
+  // ImVec4 m_distanceColor;
 };
 
 #endif

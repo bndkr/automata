@@ -94,10 +94,10 @@ int main(int, char **)
     if (show_demo_window)
       ImGui::ShowDemoWindow(&show_demo_window);
 
-    static Elementary elementary(100, 200, 5, g_pd3dDevice);
-    static Conways conways(100, 200, 5, g_pd3dDevice);
-    static Gradient gradient(100, 200, 5, g_pd3dDevice);
-    static Mandelbrot mandelbrot(500, 1000, g_pd3dDevice);
+    // static Elementary elementary(100, 200, 5, g_pd3dDevice);
+    // static Conways conways(100, 200, 5, g_pd3dDevice);
+    // static Gradient gradient(100, 200, 5, g_pd3dDevice);
+    // static Mandelbrot mandelbrot(500, 1000, g_pd3dDevice);
 
     // make next window fullscreen
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -111,24 +111,24 @@ int main(int, char **)
 
     ImGui::Begin("Cellular Automata", NULL, flags);
     ImGui::BeginTabBar("groups");
-    if (ImGui::BeginTabItem("Elementary Automata"))
-    {
-      elementary.showAutomataWindow();
-      ImGui::EndTabItem();
-    }
-    if (ImGui::BeginTabItem("Conway's Game of Life"))
-    {
-      conways.showAutomataWindow();
-      ImGui::EndTabItem();
-    }
-    if (ImGui::BeginTabItem("Gradient Automata"))
-    {
-      gradient.showAutomataWindow();
-      ImGui::EndTabItem();
-    }
+    // if (ImGui::BeginTabItem("Elementary Automata"))
+    // {
+    //   elementary.showAutomataWindow();
+    //   ImGui::EndTabItem();
+    // }
+    // if (ImGui::BeginTabItem("Conway's Game of Life"))
+    // {
+    //   conways.showAutomataWindow();
+    //   ImGui::EndTabItem();
+    // }
+    // if (ImGui::BeginTabItem("Gradient Automata"))
+    // {
+    //   gradient.showAutomataWindow();
+    //   ImGui::EndTabItem();
+    // }
     if (ImGui::BeginTabItem("Mandelbrot Set"))
     {
-      mandelbrot.showAutomataWindow();
+      mandelbrot::showAutomataWindow(g_pd3dDevice);
     }
     ImGui::EndTabBar();
     ImGui::End();

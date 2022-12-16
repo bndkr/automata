@@ -45,8 +45,6 @@ struct Color
   uint8_t a;
 };
 
-
-
 class Grid
 {
 public:

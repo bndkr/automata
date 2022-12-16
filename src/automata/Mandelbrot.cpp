@@ -29,11 +29,13 @@ double normalizeIteration(double input)
 
 namespace mandelbrot
 {
-void mandelbrot::showAutomataWindow(Grid& grid,
-                                    FractalBounds window,
-                                    Int2 imageSize,
-                                    ID3D11ShaderResourceView* view)
+void mandelbrot::showAutomataWindow(ID3D11Device* pDevice)
 {
+  static Grid grid(500, 1000);
+  static FractalBounds window{-2.0, 1.0, -1.0, 1.0};
+  static Int2 imageSize{500, 1000};
+
+
   static bool displayRuleMenu = false;
   // dumb solution
   static int iterations = 1000;
@@ -48,7 +50,9 @@ void mandelbrot::showAutomataWindow(Grid& grid,
 
   static ID3D11ShaderResourceView* pView = NULL;
   static ID3D11Texture2D* pTexture = NULL;
-  static ID3D11Device* pDevice = NULL;
+  
+  static ImVec4 setColor = {1, 0, 0, 1};
+  static ImVec4 distanceColor = {1, 1, 1, 1};
 
   static Palette palette(120);
   static uint32_t numThreads(std::thread::hardware_concurrency());
@@ -90,7 +94,7 @@ void mandelbrot::showAutomataWindow(Grid& grid,
       grid.clear();
     }
 
-    if (ImGui::ColorEdit4("Inside Color", (float*)&(m_setColor),
+    if (ImGui::ColorEdit4("Inside Color", (float*)&(setColor),
                           ImGuiColorEditFlags_NoInputs))
     {
       updateView = true;
@@ -106,7 +110,7 @@ void mandelbrot::showAutomataWindow(Grid& grid,
         updateView = true;
       }
 
-      if (ImGui::ColorEdit4("Distance Color", (float*)&(m_distanceColor),
+      if (ImGui::ColorEdit4("Distance Color", (float*)&(distanceColor),
                             ImGuiColorEditFlags_NoInputs))
       {
         grid.clear();
@@ -161,11 +165,11 @@ void mandelbrot::showAutomataWindow(Grid& grid,
   if (updateView)
   {
     updateGrid(smooth, numThreads, window, grid, palette, minDistance,
-               iterations, imageSize, pView, pTexture, pDevice);
+               iterations, imageSize, pView, pTexture, pDevice, setColor, distanceColor);
   }
   updateView = false;
 
-  ImGui::Image((void*)view, ImVec2(imageSize.x, imageSize.y));
+  ImGui::Image((void*)pView, ImVec2(imageSize.x, imageSize.y));
 
   auto mousePositionAbsolute = ImGui::GetMousePos();
   auto screenPositionAbsolute = ImGui::GetItemRectMin();
@@ -265,14 +269,17 @@ void mandelbrot::updateGrid(const Smooth smooth, const uint32_t numThreads,
                             Palette& palette, const float minDistance,
                             const uint32_t maxIterations, const Int2 imageSize,
                             ID3D11ShaderResourceView* pView,
-                            ID3D11Texture2D* pTexture, ID3D11Device* pDevice)
+                            ID3D11Texture2D* pTexture, ID3D11Device* pDevice,
+                            const ImVec4& setColor,
+                            const ImVec4& distanceColor)
 {
   std::vector<std::future<bool>> futures;
   for (uint32_t i = 0; i < numThreads; i++)
   {
     futures.push_back(std::async(std::launch::async, &getMandelbrotPixels, i,
                                  numThreads, smooth, window, rGrid,
-                                 maxIterations, imageSize, palette, minDistance));
+                                 maxIterations, imageSize, palette, minDistance,
+                                 setColor, distanceColor));
   }
   for (auto&& future : futures)
   {
@@ -302,15 +309,11 @@ Palette mandelbrot::updatePalette(std::vector<Color> colorList, const uint32_t n
   return p;
 }
 
-bool mandelbrot::getMandelbrotPixels(const uint32_t offset,
-                                     const uint32_t numWorkers,
-                                     const Smooth smooth,
-                                     const FractalBounds window,
-                                     Grid& grid,
-                                     const uint32_t maxIterations,
-                                     const Int2 imageSize,
-                                     Palette& palette,
-                                     const float minDistance)
+bool mandelbrot::getMandelbrotPixels(
+  const uint32_t offset, const uint32_t numWorkers, const Smooth smooth,
+  const FractalBounds window, Grid& grid, const uint32_t maxIterations,
+  const Int2 imageSize, Palette& palette, const float minDistance,
+  const ImVec4& setColor, const ImVec4& distanceColor)
 {
   for (uint32_t x = 0; x < imageSize.x; x++)
   {
@@ -327,7 +330,7 @@ bool mandelbrot::getMandelbrotPixels(const uint32_t offset,
         double result = calculatePixel(v_x, v_y, smooth, maxIterations);
         if (result == -1.0)
         {
-          grid.setCellDirectly(y, x, imvec4ToColor(m_setColor));
+          grid.setCellDirectly(y, x, imvec4ToColor(setColor));
         }
         else
         {
@@ -335,7 +338,7 @@ bool mandelbrot::getMandelbrotPixels(const uint32_t offset,
           {
             if (result < minDistance)
             {
-              grid.setCellDirectly(y, x, imvec4ToColor(m_distanceColor));
+              grid.setCellDirectly(y, x, imvec4ToColor(distanceColor));
             }
           }
           else
