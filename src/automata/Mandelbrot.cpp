@@ -54,7 +54,9 @@ void mandelbrot::showAutomataWindow(ID3D11Device* pDevice)
   static ImVec4 setColor = {0, 0, 0, 1};
   static ImVec4 distanceColor = {1, 1, 1, 1};
 
-  static Palette palette(120);
+  static uint32_t numColors = 120;
+
+  static Palette palette(numColors);
   static uint32_t numThreads(std::thread::hardware_concurrency());
 
   const char* smoothList[] = {"None", "Linear", "Logarithmic",
@@ -64,10 +66,25 @@ void mandelbrot::showAutomataWindow(ID3D11Device* pDevice)
   const char* items[] = {"2", "3", "4"};
   static int item_current = 0;
 
-  static ImVec4 color0 = {0, 0, 0, 1};
-  static ImVec4 color1 = {1, 1, 1, 1};
-  static ImVec4 color2 = {1, 1, 1, 1};
-  static ImVec4 color3 = {1, 1, 1, 1};
+  static bool showPalette = true;
+  ImGui::Checkbox("Show Palette", &showPalette);
+
+  if (showPalette)
+  {
+    for (uint32_t i = 0; i < numColors; i++)
+    {
+      ImGui::Text("%d: r: %d, g: %d, b:%d", i, palette.getColor(i).r,
+                  palette.getColor(i).g, palette.getColor(i).b);
+    }
+  }
+
+
+  static std::vector<ImVec4> colors = {
+    {1.0, 1.0, 1.0, 1.0},
+    {1.0, 1.0, 1.0, 1.0},
+    {1.0, 1.0, 1.0, 1.0},
+    {1.0, 1.0, 1.0, 1.0},
+  };
 
   if (ImGui::Button("Fractal Options"))
     displayRuleMenu = true;
@@ -119,44 +136,46 @@ void mandelbrot::showAutomataWindow(ID3D11Device* pDevice)
     }
     else
     {
+      const char* items[] = {"2", "3", "4"};
+      static int item_current = 0;
       if (ImGui::Combo("Number of palette colors", &item_current, items,
                        IM_ARRAYSIZE(items)))
       {
         if (numInterpolatedColors == 2)
-          // another dump dum dumb soluton, remember to apply below
-          updatePalette({imvec4ToColor(color0), imvec4ToColor(color1)}, 120); 
+          updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1])},
+                        numColors);
         if (numInterpolatedColors == 3)
-          updatePalette({imvec4ToColor(color0), imvec4ToColor(color1),
-                         imvec4ToColor(color2)}, 120);
+          updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
+                         imvec4ToColor(colors[2])},
+                        numColors);
         if (numInterpolatedColors == 4)
-          updatePalette({imvec4ToColor(color0), imvec4ToColor(color1),
-                         imvec4ToColor(color2), imvec4ToColor(color3)}, 120);
-        grid.clear();
+          updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
+                         imvec4ToColor(colors[2]), imvec4ToColor(colors[3])},
+                        numColors);
         updateView = true;
+        grid.clear();
       }
-      // this needs to be fixed...
+
       numInterpolatedColors = item_current + 2;
-      if (ImGui::ColorEdit4("color 0", (float*)&(color0),
-                            ImGuiColorEditFlags_NoInputs) ||
-          ImGui::ColorEdit4("color 1", (float*)&(color1),
-                            ImGuiColorEditFlags_NoInputs) ||
-          ImGui::ColorEdit4("color 2", (float*)&(color2),
-                            ImGuiColorEditFlags_NoInputs) ||
-          ImGui::ColorEdit4("color 3", (float*)&(color3),
-                            ImGuiColorEditFlags_NoInputs))
+      for (int i = 0; i < numInterpolatedColors; i++)
       {
-        if (numInterpolatedColors == 2)
-          updatePalette({imvec4ToColor(color0), imvec4ToColor(color1)}, 120);
-        if (numInterpolatedColors == 3)
-          updatePalette({imvec4ToColor(color0), imvec4ToColor(color1),
-                         imvec4ToColor(color2)},
-                        120);
-        if (numInterpolatedColors == 4)
-          updatePalette({imvec4ToColor(color0), imvec4ToColor(color1),
-                         imvec4ToColor(color2), imvec4ToColor(color3)},
-                        120);
-        grid.clear();
-        updateView = true;
+        if (ImGui::ColorEdit4(
+              std::string("color " + std::to_string(i + 1)).c_str(),
+              (float*)&(colors[i]), ImGuiColorEditFlags_NoInputs))
+        {
+          if (numInterpolatedColors == 2)
+            palette = updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1])},
+                          numColors);
+          if (numInterpolatedColors == 3)
+            palette = updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
+                           imvec4ToColor(colors[2])}, numColors);
+          if (numInterpolatedColors == 4)
+            palette = updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
+                           imvec4ToColor(colors[2]), imvec4ToColor(colors[3])},
+                          numColors);
+          updateView = true;
+          grid.clear();
+        }
       }
     }
     ImGui::End();
