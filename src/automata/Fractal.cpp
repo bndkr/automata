@@ -51,32 +51,33 @@ Palette updatePalette(std::vector<Color> colorList,
 void showAutomataWindow(ID3D11Device* pDevice)
 {
   static Grid grid(1000, 500);
-  static FractalBounds window{-2.0, 2.0, -1.0, 1.0};
+  static Smooth smooth = Smooth::Linear;
+  static uint32_t numThreads(std::thread::hardware_concurrency());
+  static uint32_t numColors = 120;
+  static Palette palette(numColors);
+  static float minDistance = 0.01f;
+  static int iterations = 1000;
   static Int2 imageSize{1000, 500};
+  static ID3D11ShaderResourceView* pView = NULL;
+  static ID3D11Texture2D* pTexture = NULL;
+  static ImVec4 setColor = {0, 0, 0, 1};
+  static ImVec4 distanceColor = {1, 1, 1, 1};
+  static FractalType type = FractalType::Mandelbrot;
+  static FractalBounds window{-2.0, 2.0, -1.0, 1.0};
+
+
+  static FractalInfo f{&grid,       smooth,     numThreads, &palette,
+                       minDistance, iterations, imageSize,  &pView,
+                       &pTexture,   pDevice,    setColor,   distanceColor,
+                       type,        window};
 
   static bool displayRuleMenu = false;
-  static int iterations = 1000;
 
   static uint32_t mouseX;
   static uint32_t mouseY;
 
   static bool updateView = true;
-  static Smooth smooth = Smooth::Linear;
   static bool debug = true;
-  static float minDistance = 0.01f;
-
-  static ID3D11ShaderResourceView* pView = NULL;
-  static ID3D11Texture2D* pTexture = NULL;
-
-  static FractalType type = FractalType::Mandelbrot;
-  
-  static ImVec4 setColor = {0, 0, 0, 1};
-  static ImVec4 distanceColor = {1, 1, 1, 1};
-
-  static uint32_t numColors = 120;
-
-  static Palette palette(numColors);
-  static uint32_t numThreads(std::thread::hardware_concurrency());
 
   const char* smoothList[] = {"None", "Linear", "Logarithmic",
                               "Distance Estimate"};
@@ -118,7 +119,7 @@ void showAutomataWindow(ID3D11Device* pDevice)
 
     if (ImGui::SliderInt("Iterations", &iterations, 0, 2000))
     {
-      grid.clear();
+      f.pGrid->clear();
       updateView = true;
     }
 
@@ -127,14 +128,14 @@ void showAutomataWindow(ID3D11Device* pDevice)
     {
       smooth = (Smooth)smoothIdx;
       updateView = true;
-      grid.clear();
+      f.pGrid->clear();
     }
 
     if (ImGui::ColorEdit4("Inside Color", (float*)&(setColor),
                           ImGuiColorEditFlags_NoInputs))
     {
       updateView = true;
-      grid.clear();
+      f.pGrid->clear();
     }
 
     if (smooth == Smooth::Distance)
@@ -142,14 +143,14 @@ void showAutomataWindow(ID3D11Device* pDevice)
       if (ImGui::SliderFloat("Distance", &minDistance, 0.0f, 0.1f, "%.12f",
                              ImGuiSliderFlags_Logarithmic))
       {
-        grid.clear();
+        f.pGrid->clear();
         updateView = true;
       }
 
       if (ImGui::ColorEdit4("Distance Color", (float*)&(distanceColor),
                             ImGuiColorEditFlags_NoInputs))
       {
-        grid.clear();
+        f.pGrid->clear();
         updateView = true;
       }
     }
@@ -172,7 +173,7 @@ void showAutomataWindow(ID3D11Device* pDevice)
                          imvec4ToColor(colors[2]), imvec4ToColor(colors[3])},
                         numColors);
         updateView = true;
-        grid.clear();
+        f.pGrid->clear();
       }
 
       numInterpolatedColors = item_current + 2;
@@ -193,7 +194,7 @@ void showAutomataWindow(ID3D11Device* pDevice)
                            imvec4ToColor(colors[2]), imvec4ToColor(colors[3])},
                           numColors);
           updateView = true;
-          grid.clear();
+          f.pGrid->clear();
         }
       }
     }
@@ -202,8 +203,7 @@ void showAutomataWindow(ID3D11Device* pDevice)
 
   if (updateView)
   {
-    updateGrid(smooth, numThreads, window, &grid, palette, minDistance,
-               iterations, imageSize, &pView, &pTexture, pDevice, setColor, distanceColor, type);
+    updateGrid(f);
   }
   // updateView = false;
 
@@ -285,36 +285,24 @@ void showAutomataWindow(ID3D11Device* pDevice)
 }
 
 // should be called once per frame
-void loadGrid(Grid* pGrid,
-                          ID3D11Device* device,
-                          const Int2 imageSize,
-                          ID3D11ShaderResourceView** pView,
-                          ID3D11Texture2D** pTexture)
+void loadGrid(FractalInfo& f)
 {
-  if (*pTexture)
-    (*pTexture)->Release();
-  if (*pView)
-    (*pView)->Release();
+  if (*f.pTexture)
+    (*f.pTexture)->Release();
+  if (*f.pView)
+    (*f.pView)->Release();
 
-  automata::LoadTextureFromData(pGrid->getData(), pView, pTexture, device,
-                                imageSize.x, imageSize.y);
+  automata::LoadTextureFromData(f.pGrid->getData(), f.pView, f.pTexture, f.pDevice,
+                                f.imageSize.x, f.imageSize.y);
 }
 
-void updateGrid(const Smooth smooth, const uint32_t numThreads,
-                const FractalBounds& window, Grid* pGrid, Palette& palette,
-                const float minDistance, const uint32_t maxIterations,
-                const Int2 imageSize, ID3D11ShaderResourceView** pView,
-                ID3D11Texture2D** pTexture, ID3D11Device* pDevice,
-                const ImVec4& setColor, const ImVec4& distanceColor,
-                const FractalType& type)
+void updateGrid(FractalInfo& f)
 {
   std::vector<std::future<bool>> futures;
-  for (uint32_t i = 0; i < numThreads; i++)
+  for (uint32_t i = 0; i < f.numThreads; i++)
   {
     futures.push_back(std::async(std::launch::async, &getFractalPixels, i,
-                                 numThreads, smooth, window, pGrid,
-                                 maxIterations, imageSize, palette, minDistance,
-                                 setColor, distanceColor, type));
+                                 f));
   }
   for (auto&& future : futures)
   {
@@ -322,60 +310,56 @@ void updateGrid(const Smooth smooth, const uint32_t numThreads,
     if (!result)
       throw std::runtime_error("fractal generation failed");
   }
-  loadGrid(pGrid, pDevice, imageSize, pView, pTexture);
+  loadGrid(f);
 }
 
-bool getFractalPixels(
-  const uint32_t offset, const uint32_t numWorkers, const Smooth smooth,
-  const FractalBounds window, Grid* pGrid, const uint32_t maxIterations,
-  const Int2 imageSize, Palette& palette, const float minDistance,
-  const ImVec4& setColor, const ImVec4& distanceColor, const FractalType& type)
+bool getFractalPixels(uint32_t offset, FractalInfo& f)
 {
-  for (uint32_t x = 0; x < imageSize.x; x++)
+  for (uint32_t x = 0; x < f.imageSize.x; x++)
   {
-    for (uint32_t y = offset; y < imageSize.y; y += numWorkers)
+    for (uint32_t y = offset; y < f.imageSize.y; y += f.numThreads)
     {
-      if (!pGrid->checkCell(y, x)) // only update pixels that are empty
+      if (!f.pGrid->checkCell(y, x)) // only update pixels that are empty
       {
         // translate from pixel space to our virtual space
         double v_x =
-          window.xmin + ((window.xmax - window.xmin) / imageSize.x) * x;
+          f.window.xmin + ((f.window.xmax - f.window.xmin) / f.imageSize.x) * x;
         double v_y =
-          window.ymin + ((window.ymax - window.ymin) / imageSize.y) * y;
+          f.window.ymin + ((f.window.ymax - f.window.ymin) / f.imageSize.y) * y;
 
         double result = 0;
-        if (type == FractalType::Mandelbrot)
-          result = mandelbrot::calculatePixel(v_x, v_y, smooth, maxIterations);
-        else if (type == FractalType::Julia)
+        if (f.type == FractalType::Mandelbrot)
+          result = mandelbrot::calculatePixel(v_x, v_y, f.smooth, f.maxIterations);
+        else if (f.type == FractalType::Julia)
           result = 0;
         if (result == -1.0)
         {
-          pGrid->setCellDirectly(y, x, imvec4ToColor(setColor));
+          f.pGrid->setCellDirectly(y, x, imvec4ToColor(f.setColor));
         }
         else
         {
-          if (smooth == Smooth::Distance)
+          if (f.smooth == Smooth::Distance)
           {
-            if (result < minDistance)
+            if (result < f.minDistance)
             {
-              pGrid->setCellDirectly(y, x, imvec4ToColor(distanceColor));
+              f.pGrid->setCellDirectly(y, x, imvec4ToColor(f.distanceColor));
             }
           }
           else
           {
             result = normalizeIteration(result);
             double gradient = result - (int)result;
-            int step = (int)result % palette.numColors;
-            int nextStep = (step + 1) % palette.numColors;
-            auto baseColor = palette.getColor(step);
-            auto nextColor = palette.getColor(nextStep);
+            int step = (int)result % f.palette->numColors;
+            int nextStep = (step + 1) % f.palette->numColors;
+            auto baseColor = f.palette->getColor(step);
+            auto nextColor = f.palette->getColor(nextStep);
             // interpolate between baseColor and nextColor
             auto newColor = Color{
               (uint8_t)(baseColor.r + (nextColor.r - baseColor.r) * gradient),
               (uint8_t)(baseColor.g + (nextColor.g - baseColor.g) * gradient),
               (uint8_t)(baseColor.b + (nextColor.b - baseColor.b) * gradient),
               255};
-            pGrid->setCellDirectly(y, x, newColor);
+            f.pGrid->setCellDirectly(y, x, newColor);
           }
         }
       }

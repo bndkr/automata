@@ -50,31 +50,20 @@ struct FractalInfo
   ImVec4 setColor;
   ImVec4 distanceColor;
   FractalType type;
+  FractalBounds window;
 };
 
 namespace fractal
 {
   void showAutomataWindow(ID3D11Device* pDevice);
 
-  void loadGrid(Grid* pGrid, ID3D11Device* device, const Int2 imageSize,
-                ID3D11ShaderResourceView** pView, ID3D11Texture2D** pTexture);
+  void loadGrid(FractalInfo& f);
 
-  void updateGrid(const Smooth smooth, const uint32_t numThreads,
-                  const FractalBounds& window, Grid* rGrid, Palette& palette,
-                  const float minDistance, const uint32_t maxIterations,
-                  const Int2 imageSize, ID3D11ShaderResourceView** pView,
-                  ID3D11Texture2D** pTexture, ID3D11Device* pDevice,
-                  const ImVec4& setColor, const ImVec4& distanceColor,
-                  const FractalType& type);
+  void updateGrid(FractalInfo& f);
 
   Palette updatePalette(std::vector<Color> colorList, const uint32_t numColors);
 
-  bool getFractalPixels(const uint32_t offset, const uint32_t numWorkers,
-                           const Smooth smooth, const FractalBounds window,
-                           Grid* pGrid, const uint32_t maxIterations,
-                           const Int2 imageSize, Palette& palette,
-                           const float minDistance, const ImVec4& setColor,
-                           const ImVec4& distanceColor, const FractalType& type);
+  bool getFractalPixels(uint32_t offset, FractalInfo& f);
 };
 
 #endif
