@@ -39,6 +39,8 @@ set(automata_srcs
   src/automata/Conways.hpp
   src/automata/Elementary.cpp
   src/automata/Elementary.hpp
+  src/automata/Fractal.cpp
+  src/automata/Fractal.hpp
   src/automata/Gradient.cpp
   src/automata/Gradient.hpp
   src/automata/Mandelbrot.cpp

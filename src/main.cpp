@@ -128,7 +128,7 @@ int main(int, char **)
     // }
     if (ImGui::BeginTabItem("Mandelbrot Set"))
     {
-      mandelbrot::showAutomataWindow(g_pd3dDevice);
+      fractal::showAutomataWindow(g_pd3dDevice);
     }
     ImGui::EndTabBar();
     ImGui::End();
