@@ -89,20 +89,19 @@ void showAutomataWindow(ID3D11Device* pDevice)
   static bool showPalette = true;
   ImGui::Checkbox("Show Palette", &showPalette);
 
-  if (showPalette)
-  {
-    for (uint32_t i = 0; i < numColors; i++)
-    {
-      ImGui::Text("%d: r: %d, g: %d, b:%d", i, palette.getColor(i).r,
-                  palette.getColor(i).g, palette.getColor(i).b);
-    }
-  }
-
+  // if (showPalette)
+  // {
+  //   for (uint32_t i = 0; i < numColors; i++)
+  //   {
+  //     ImGui::Text("%d: r: %d, g: %d, b:%d", i, f.palette->getColor(i).r,
+  //                 f.palette->getColor(i).g, f.palette->getColor(i).b);
+  //   }
+  // }
 
   static std::vector<ImVec4> colors = {
+    {0.0, 0.0, 0.0, 1.0},
     {1.0, 1.0, 1.0, 1.0},
-    {1.0, 1.0, 1.0, 1.0},
-    {1.0, 1.0, 1.0, 1.0},
+    {0.0, 0.0, 0.0, 1.0},
     {1.0, 1.0, 1.0, 1.0},
   };
 
@@ -117,7 +116,7 @@ void showAutomataWindow(ID3D11Device* pDevice)
 
     ImGui::Checkbox("Debug Info", &debug);
 
-    if (ImGui::SliderInt("Iterations", &iterations, 0, 2000))
+    if (ImGui::SliderInt("Iterations", &f.maxIterations, 0, 2000))
     {
       f.pGrid->clear();
       updateView = true;
@@ -126,12 +125,12 @@ void showAutomataWindow(ID3D11Device* pDevice)
     if (ImGui::Combo("Smoothing Algorithm", &smoothIdx, smoothList,
                      IM_ARRAYSIZE(smoothList)))
     {
-      smooth = (Smooth)smoothIdx;
+      f.smooth = (Smooth)smoothIdx;
       updateView = true;
       f.pGrid->clear();
     }
 
-    if (ImGui::ColorEdit4("Inside Color", (float*)&(setColor),
+    if (ImGui::ColorEdit4("Inside Color", (float*)&(f.setColor),
                           ImGuiColorEditFlags_NoInputs))
     {
       updateView = true;
@@ -140,14 +139,14 @@ void showAutomataWindow(ID3D11Device* pDevice)
 
     if (smooth == Smooth::Distance)
     {
-      if (ImGui::SliderFloat("Distance", &minDistance, 0.0f, 0.1f, "%.12f",
+      if (ImGui::SliderFloat("Distance", &f.minDistance, 0.0f, 0.1f, "%.12f",
                              ImGuiSliderFlags_Logarithmic))
       {
         f.pGrid->clear();
         updateView = true;
       }
 
-      if (ImGui::ColorEdit4("Distance Color", (float*)&(distanceColor),
+      if (ImGui::ColorEdit4("Distance Color", (float*)&f.distanceColor,
                             ImGuiColorEditFlags_NoInputs))
       {
         f.pGrid->clear();
@@ -162,14 +161,17 @@ void showAutomataWindow(ID3D11Device* pDevice)
                        IM_ARRAYSIZE(items)))
       {
         if (numInterpolatedColors == 2)
-          updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1])},
-                        numColors);
+        {
+          palette = updatePalette(
+            {imvec4ToColor(colors[0]), imvec4ToColor(colors[1])}, numColors);
+        }
+          
         if (numInterpolatedColors == 3)
-          updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
+          palette = updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
                          imvec4ToColor(colors[2])},
                         numColors);
         if (numInterpolatedColors == 4)
-          updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
+          palette = updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
                          imvec4ToColor(colors[2]), imvec4ToColor(colors[3])},
                         numColors);
         updateView = true;
@@ -207,7 +209,7 @@ void showAutomataWindow(ID3D11Device* pDevice)
   }
   // updateView = false;
 
-  ImGui::Image((void*)pView, ImVec2(imageSize.x, imageSize.y));
+  ImGui::Image((void*)(*f.pView), ImVec2(f.imageSize.x, f.imageSize.y));
 
   auto mousePositionAbsolute = ImGui::GetMousePos();
   auto screenPositionAbsolute = ImGui::GetItemRectMin();
@@ -219,9 +221,9 @@ void showAutomataWindow(ID3D11Device* pDevice)
   mouseY = mousePositionAbsolute.y - screenPositionAbsolute.y;
 
   double complexX =
-    (mouseX * ((window.xmax - window.xmin) / imageSize.x)) + window.xmin;
+    (mouseX * ((f.window.xmax - f.window.xmin) / f.imageSize.x)) +  f.window.xmin;
   double complexY =
-    -((mouseY * ((window.ymax - window.ymin) / imageSize.y)) + window.ymin);
+    -((mouseY * ((f.window.ymax - f.window.ymin) / f.imageSize.y)) + f.window.ymin);
   // negative because the top left corner is (0,0), not the bottom left corner
 
   static bool wasDragging = false;
@@ -233,14 +235,14 @@ void showAutomataWindow(ID3D11Device* pDevice)
     if (dragDelta.x != 0 || dragDelta.y != 0)
     {
       auto complexDiffX =
-        dragDelta.x * ((window.xmax - window.xmin) / imageSize.x);
+        dragDelta.x * ((f.window.xmax - f.window.xmin) / f.imageSize.x);
       auto complexDiffY =
-        dragDelta.y * ((window.ymax - window.ymin) / imageSize.y);
+        dragDelta.y * ((f.window.ymax - f.window.ymin) / f.imageSize.y);
 
-      window.xmin -= complexDiffX;
-      window.xmax -= complexDiffX;
-      window.ymin -= complexDiffY;
-      window.ymax -= complexDiffY;
+      f.window.xmin -= complexDiffX;
+      f.window.xmax -= complexDiffX;
+      f.window.ymin -= complexDiffY;
+      f.window.ymax -= complexDiffY;
 
       updateView = true;
       wasDragging = true;
@@ -250,23 +252,23 @@ void showAutomataWindow(ID3D11Device* pDevice)
   // zoom in
   if (hovering && ImGui::IsMouseReleased(ImGuiMouseButton_Left) && !wasDragging)
   {
-    window.xmin = (window.xmin + complexX) / 2;
-    window.xmax = (window.xmax + complexX) / 2;
+    f.window.xmin = (f.window.xmin + complexX) / 2;
+    f.window.xmax = (f.window.xmax + complexX) / 2;
 
-    window.ymin = (window.ymin - complexY) / 2;
-    window.ymax = (window.ymax - complexY) / 2;
-    grid.clear();
+    f.window.ymin = (f.window.ymin - complexY) / 2;
+    f.window.ymax = (f.window.ymax - complexY) / 2;
+    f.pGrid->clear();
     updateView = true;
   }
   // zoom out
   if (hovering && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
   {
-    window.xmin -= (complexX - window.xmin);
-    window.xmax += (window.xmax - complexX);
+    f.window.xmin -= (complexX - f.window.xmin);
+    f.window.xmax += (f.window.xmax - complexX);
 
-    window.ymin += (complexY + window.ymin);
-    window.ymax += (window.ymax + complexY);
-    grid.clear();
+    f.window.ymin += (complexY + f.window.ymin);
+    f.window.ymax += (f.window.ymax + complexY);
+    f.pGrid->clear();
     updateView = true;
   }
 

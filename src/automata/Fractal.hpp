@@ -42,7 +42,7 @@ struct FractalInfo
   uint32_t numThreads;
   Palette* palette;
   float minDistance;
-  uint32_t maxIterations;
+  int maxIterations;
   Int2 imageSize;
   ID3D11ShaderResourceView** pView;
   ID3D11Texture2D** pTexture;
