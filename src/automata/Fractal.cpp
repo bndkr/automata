@@ -130,6 +130,22 @@ void showAutomataWindow(ID3D11Device* pDevice)
       f.pGrid->clear();
     }
 
+    if (f.smooth == Smooth::Distance)
+    {
+      if (ImGui::SliderFloat("Distance", &f.minDistance, 0.0000000001f, 0.1f, "%.12f",
+        ImGuiSliderFlags_Logarithmic))
+      {
+        updateView = true;
+        f.pGrid->clear();
+      }
+      if (ImGui::ColorEdit4("Distance Color", (float*)&f.distanceColor),
+          ImGuiColorEditFlags_NoInputs)
+      {
+        updateView = true;
+        f.pGrid->clear();
+      }
+    }
+
     if (ImGui::ColorEdit4("Inside Color", (float*)&(f.setColor),
                           ImGuiColorEditFlags_NoInputs))
     {
@@ -207,7 +223,7 @@ void showAutomataWindow(ID3D11Device* pDevice)
   {
     updateGrid(f);
   }
-  // updateView = false;
+  updateView = false;
 
   ImGui::Image((void*)(*f.pView), ImVec2(f.imageSize.x, f.imageSize.y));
 
