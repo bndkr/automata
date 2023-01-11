@@ -2,23 +2,29 @@
 #define AUTOMATA_PALETTE
 
 #include "Grid.hpp"
+#include "imgui/imgui.h"
+
 struct Palette
 {
-  Palette(uint64_t numColors)
-    : buffer(numColors * 3), numColors(numColors)
+  Palette(std::vector<Color> colors, uint32_t numSteps = 100)
+    : m_colors(colors), m_numSteps(numSteps)
   {
-    interpolate(Color{0, 0, 0, 255}, Color{255, 255, 255, 255});
   }
 
-  Color getColor(uint64_t index);
+  Color getColor(double index);
 
-  void setColor(Color color, uint64_t index);
+  void updateColors(std::vector<ImVec4> colors);
+  void updateSize(uint32_t numSteps)
+  {
+    m_numSteps = numSteps;
+  }
 
-  void interpolate(Color color1, Color color2);
-  void interpolate(Color color1, Color color2, Color color3);
-  void interpolate(Color color1, Color color2, Color color3, Color color4);
+  uint32_t getNumSteps()
+  {
+    return m_numSteps;
+  }
 
-  Buffer buffer;
-  uint32_t numColors;
+  std::vector<Color> m_colors;
+  uint32_t m_numSteps;
 };
 #endif

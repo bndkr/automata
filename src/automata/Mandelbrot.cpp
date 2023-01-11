@@ -1,12 +1,5 @@
 #include "Mandelbrot.hpp"
 
-#include "imgui/imgui.h"
-#include "utils/LoadTextureFromData.hpp"
-
-#include <d3d11.h>
-#include <string>
-#include <future>
-
 namespace mandelbrot
 {
 double mandelbrot::calculatePixel(const double x_0, const double y_0,

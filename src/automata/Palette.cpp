@@ -1,106 +1,54 @@
 #include "Palette.hpp"
 
-Color Palette::getColor(uint64_t index)
+namespace
 {
-  if (index >= numColors)
-  {
-    throw std::runtime_error("color index out of range");
-  }
-  return Color{buffer.get(index * 3 + 2), buffer.get(index * 3 + 1),
-               buffer.get(index * 3), 255};
-}
-
-// never used
-void Palette::setColor(Color color, uint64_t index)
+double fmod(double f, uint32_t n)
 {
-  if (index >= numColors)
-  {
-    throw std::runtime_error("color index out of range");
-  }
-  buffer.set(index * 3, color.r);
-  buffer.set(index * 3 + 1, color.b);
-  buffer.set(index * 3 + 2, color.g);
-}
-
-void Palette::interpolate(Color color1, Color color2)
-{
-  double half = numColors / 2;
-  
-  uint64_t i = 0;
-  for (i; i < half; i++)
-  {
-    buffer.set(i * 3,  color1.b * ((half - i) / half) + color2.b * (i / half));
-    buffer.set(i * 3 + 1,  color1.g * ((half - i) / half) + color2.g * (i / half));
-    buffer.set(i * 3 + 2,  color1.r * ((half - i) / half) + color2.r * (i / half));
-
-    buffer.set(i * 3 + (numColors * 3) / 2, 
-      color2.b * ((half - i) / half) + color1.b * (i / half));
-    buffer.set(i * 3 + 1 + (numColors * 3) / 2, 
-      color2.g * ((half - i) / half) + color1.g * (i / half));
-    buffer.set(i * 3 + 2 + (numColors * 3) / 2, 
-      color2.r * ((half - i) / half) + color1.r * (i / half));
+  for (;;)
+  { // could be infinite if f < 0
+    if (f - n >= 0)
+      f -= n;
+    else
+      return f;
   }
 }
 
-void Palette::interpolate(Color color1, Color color2, Color color3)
+  // assumed that 'interval' is between 0 and 1
+Color interpolate(const Color& color1, const Color& color2, const float interval)
 {
-  double third = numColors / 3;
-
-  uint64_t i = 0;
-  for (i; i < third; i++)
-  {
-    buffer.set(i * 3,  color1.b * ((third - i) / third) + color2.b * (i / third));
-    buffer.set(i * 3 + 1,  color1.g * ((third - i) / third) + color2.g * (i / third));
-    buffer.set(i * 3 + 2,  color1.r * ((third - i) / third) + color2.r * (i / third));
-
-    buffer.set(i * 3 + (numColors * 3) / 3, 
-      color2.b * ((third - i) / third) + color3.b * (i / third));
-    buffer.set(i * 3 + 1 + (numColors * 3) / 3, 
-      color2.g * ((third - i) / third) + color3.g * (i / third));
-    buffer.set(i * 3 + 2 + (numColors * 3) / 3, 
-      color2.r * ((third - i) / third) + color3.r * (i / third));
-
-    buffer.set(i * 3 + (numColors * 6) / 3, 
-      color3.b * ((third - i) / third) + color1.b * (i / third));
-    buffer.set(i * 3 + 1 + (numColors * 6) / 3, 
-      color3.g * ((third - i) / third) + color1.g * (i / third));
-    buffer.set(i * 3 + 2 + (numColors * 6) / 3, 
-      color3.r * ((third - i) / third) + color1.r * (i / third));
-  }
+  return Color{(uint8_t)((float) color2.r * interval + (float) (1 - interval) * color1.r),
+               (uint8_t)((float) color2.g * interval + (float) (1 - interval) * color1.g),
+               (uint8_t)((float) color2.b * interval + (float) (1 - interval) * color1.b),
+               (uint8_t)((float) color2.a * interval + (float) (1 - interval) * color1.a)};
 }
 
-void Palette::interpolate(Color color1, Color color2, Color color3,
-                          Color color4)
+Color imvec4ToColor(ImVec4 vec)
 {
-  double fourth = numColors / 4;
+  uint8_t red = vec.x * 255;
+  uint8_t green = vec.y * 255;
+  uint8_t blue = vec.z * 255;
+  uint8_t alpha = vec.w * 255;
+  return Color{red, green, blue, alpha};
+} 
+}
 
-  uint64_t i = 0;
-  for (i; i < fourth; i++)
+// index is assumed to be (numIterations + gradient)
+Color Palette::getColor(double index)
+{
+  index = fmod(index, m_numSteps);
+  uint32_t numColors = m_colors.size();
+  uint32_t stepSize = m_numSteps / numColors;
+  uint32_t colorIndex1 = index / stepSize;
+  return interpolate(m_colors[colorIndex1],
+                     m_colors[(colorIndex1 + 1) % numColors],
+                     fmod(index, stepSize) / stepSize);
+}
+
+void Palette::updateColors(std::vector<ImVec4> colors)
+{
+  m_colors.clear();
+  for (const auto& color : colors)
   {
-    buffer.set(i * 3, color1.b * ((fourth - i) / fourth) + color2.b * (i / fourth));
-    buffer.set(i * 3 + 1,
-               color1.g * ((fourth - i) / fourth) + color2.g * (i / fourth));
-    buffer.set(i * 3 + 2, color1.r * ((fourth - i) / fourth) + color2.r * (i / fourth));
-
-    buffer.set(i * 3 + (numColors * 3) / 4, 
-      color2.b * ((fourth - i) / fourth) + color3.b * (i / fourth));
-    buffer.set(i * 3 + 1 + (numColors * 3) / 4, 
-      color2.g * ((fourth - i) / fourth) + color3.g * (i / fourth));
-    buffer.set(i * 3 + 2 + (numColors * 3) / 4, 
-      color2.r * ((fourth - i) / fourth) + color3.r * (i / fourth));
-
-    buffer.set(i * 3 + (numColors * 6) / 4, 
-      color3.b * ((fourth - i) / fourth) + color4.b * (i / fourth));
-    buffer.set(i * 3 + 1 + (numColors * 6) / 4, 
-      color3.g * ((fourth - i) / fourth) + color4.g * (i / fourth));
-    buffer.set(i * 3 + 2 + (numColors * 6) / 4, 
-      color3.r * ((fourth - i) / fourth) + color4.r * (i / fourth));
-
-    buffer.set(i * 3 + (numColors * 9) / 4, 
-      color4.b * ((fourth - i) / fourth) + color1.b * (i / fourth));
-    buffer.set(i * 3 + 1 + (numColors * 9) / 4, 
-      color4.g * ((fourth - i) / fourth) + color1.g * (i / fourth));
-    buffer.set(i * 3 + 2 + (numColors * 9) / 4, 
-      color4.r * ((fourth - i) / fourth) + color1.r * (i / fourth));
+    m_colors.push_back(imvec4ToColor(color));
   }
 }

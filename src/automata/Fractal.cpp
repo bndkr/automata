@@ -5,8 +5,8 @@
 #include "utils/LoadTextureFromData.hpp"
 
 #include <d3d11.h>
-#include <string>
 #include <future>
+#include <string>
 
 // non-optimized
 #include <complex>
@@ -30,31 +30,22 @@ double normalizeIteration(double input)
 
 namespace fractal
 {
-Palette updatePalette(std::vector<Color> colorList,
-                                  const uint32_t numColors)
+Palette updatePalette(std::vector<Color> colorList, const uint32_t numColors)
 {
-  auto p = Palette(numColors);
-  if (colorList.size() < 2 || colorList.size() > 4)
-  {
-    throw std::runtime_error("cannot interpolate between" +
-                             std::to_string(colorList.size()) + " colors");
-  }
-
-  if (colorList.size() == 2)
-    p.interpolate(colorList[0], colorList[1]);
-  if (colorList.size() == 3)
-    p.interpolate(colorList[0], colorList[1], colorList[2]);
-  if (colorList.size() == 4)
-    p.interpolate(colorList[0], colorList[1], colorList[2], colorList[3]);
+  auto p = Palette(colorList, numColors);
   return p;
 }
 void showAutomataWindow(ID3D11Device* pDevice)
 {
+  std::vector<Color> initialColors = {
+    Color{0, 0, 0, 255}, Color{255, 255, 255, 255}};
   static Grid grid(1000, 500);
-  static Smooth smooth = Smooth::Linear;
+  static Smooth smooth = Smooth::Logarithmic;
   static uint32_t numThreads(std::thread::hardware_concurrency());
   static uint32_t numColors = 120;
-  static Palette palette(numColors);
+  static int numSteps = 100;
+  static int numPaletteColors = 2;
+  static Palette palette(initialColors, numSteps);
   static float minDistance = 0.01f;
   static int iterations = 1000;
   static Int2 imageSize{1000, 500};
@@ -64,7 +55,6 @@ void showAutomataWindow(ID3D11Device* pDevice)
   static ImVec4 distanceColor = {1, 1, 1, 1};
   static FractalType type = FractalType::Mandelbrot;
   static FractalBounds window{-2.0, 2.0, -1.0, 1.0};
-
 
   static FractalInfo f{&grid,       smooth,     numThreads, &palette,
                        minDistance, iterations, imageSize,  &pView,
@@ -81,22 +71,13 @@ void showAutomataWindow(ID3D11Device* pDevice)
 
   const char* smoothList[] = {"None", "Linear", "Logarithmic",
                               "Distance Estimate"};
-  static int smoothIdx = (int) smooth;
+  static int smoothIdx = (int)smooth;
   static int numInterpolatedColors = 2;
   const char* items[] = {"2", "3", "4"};
   static int item_current = 0;
 
   static bool showPalette = true;
   ImGui::Checkbox("Show Palette", &showPalette);
-
-  // if (showPalette)
-  // {
-  //   for (uint32_t i = 0; i < numColors; i++)
-  //   {
-  //     ImGui::Text("%d: r: %d, g: %d, b:%d", i, f.palette->getColor(i).r,
-  //                 f.palette->getColor(i).g, f.palette->getColor(i).b);
-  //   }
-  // }
 
   static std::vector<ImVec4> colors = {
     {0.0, 0.0, 0.0, 1.0},
@@ -132,8 +113,8 @@ void showAutomataWindow(ID3D11Device* pDevice)
 
     if (f.smooth == Smooth::Distance)
     {
-      if (ImGui::SliderFloat("Distance", &f.minDistance, 0.0000000001f, 0.1f, "%.12f",
-        ImGuiSliderFlags_Logarithmic))
+      if (ImGui::SliderFloat("Distance", &f.minDistance, 0.0000000001f, 0.1f,
+                             "%.12f", ImGuiSliderFlags_Logarithmic))
       {
         updateView = true;
         f.pGrid->clear();
@@ -171,50 +152,51 @@ void showAutomataWindow(ID3D11Device* pDevice)
     }
     else
     {
-      const char* items[] = {"2", "3", "4"};
-      static int item_current = 0;
-      if (ImGui::Combo("Number of palette colors", &item_current, items,
-                       IM_ARRAYSIZE(items)))
+      if (ImGui::InputInt("Number of colors", &numPaletteColors, 1))
       {
-        if (numInterpolatedColors == 2)
+        // we need to make sure the number of colors
+        // divides the number of steps
+        numSteps -= (numSteps % numPaletteColors);
+        if (numPaletteColors > colors.size())
         {
-          palette = updatePalette(
-            {imvec4ToColor(colors[0]), imvec4ToColor(colors[1])}, numColors);
+          for (int i = 0; i < numPaletteColors - colors.size(); i++)
+          {
+            colors.push_back(ImVec4{1.0f, 1.0f, 1.0f, 1.0f});
+          }
         }
-          
-        if (numInterpolatedColors == 3)
-          palette = updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
-                         imvec4ToColor(colors[2])},
-                        numColors);
-        if (numInterpolatedColors == 4)
-          palette = updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
-                         imvec4ToColor(colors[2]), imvec4ToColor(colors[3])},
-                        numColors);
+        if (numPaletteColors < colors.size())
+        {
+          for (int i = 0; i < colors.size() - numPaletteColors; i++)
+          {
+            colors.pop_back();
+          }
+        }
+        f.palette->updateColors(colors);
         updateView = true;
         f.pGrid->clear();
       }
 
-      numInterpolatedColors = item_current + 2;
-      for (int i = 0; i < numInterpolatedColors; i++)
+      for (int i = 0; i < numPaletteColors; i++)
       {
         if (ImGui::ColorEdit4(
               std::string("color " + std::to_string(i + 1)).c_str(),
               (float*)&(colors[i]), ImGuiColorEditFlags_NoInputs))
         {
-          if (numInterpolatedColors == 2)
-             palette = updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1])},
-                          numColors);
-          if (numInterpolatedColors == 3)
-            palette = updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
-                           imvec4ToColor(colors[2])}, numColors);
-          if (numInterpolatedColors == 4)
-            palette = updatePalette({imvec4ToColor(colors[0]), imvec4ToColor(colors[1]),
-                           imvec4ToColor(colors[2]), imvec4ToColor(colors[3])},
-                          numColors);
+          f.palette->updateColors(colors);
           updateView = true;
           f.pGrid->clear();
         }
       }
+    }
+    if (ImGui::SliderInt("Palette Steps", &numSteps, 10, 2000, "%d",
+                         ImGuiSliderFlags_Logarithmic))
+    {
+      // we need to make sure the number of colors
+      // divides the number of steps
+      numSteps -= (numSteps % numPaletteColors);
+      f.palette->updateSize(numSteps);
+      updateView = true;
+      f.pGrid->clear();
     }
     ImGui::End();
   }
@@ -237,9 +219,11 @@ void showAutomataWindow(ID3D11Device* pDevice)
   mouseY = mousePositionAbsolute.y - screenPositionAbsolute.y;
 
   double complexX =
-    (mouseX * ((f.window.xmax - f.window.xmin) / f.imageSize.x)) +  f.window.xmin;
+    (mouseX * ((f.window.xmax - f.window.xmin) / f.imageSize.x)) +
+    f.window.xmin;
   double complexY =
-    -((mouseY * ((f.window.ymax - f.window.ymin) / f.imageSize.y)) + f.window.ymin);
+    -((mouseY * ((f.window.ymax - f.window.ymin) / f.imageSize.y)) +
+      f.window.ymin);
   // negative because the top left corner is (0,0), not the bottom left corner
 
   static bool wasDragging = false;
@@ -310,8 +294,8 @@ void loadGrid(FractalInfo& f)
   if (*f.pView)
     (*f.pView)->Release();
 
-  automata::LoadTextureFromData(f.pGrid->getData(), f.pView, f.pTexture, f.pDevice,
-                                f.imageSize.x, f.imageSize.y);
+  automata::LoadTextureFromData(f.pGrid->getData(), f.pView, f.pTexture,
+                                f.pDevice, f.imageSize.x, f.imageSize.y);
 }
 
 void updateGrid(FractalInfo& f)
@@ -319,8 +303,7 @@ void updateGrid(FractalInfo& f)
   std::vector<std::future<bool>> futures;
   for (uint32_t i = 0; i < f.numThreads; i++)
   {
-    futures.push_back(std::async(std::launch::async, &getFractalPixels, i,
-                                 f));
+    futures.push_back(std::async(std::launch::async, &getFractalPixels, i, f));
   }
   for (auto&& future : futures)
   {
@@ -347,7 +330,8 @@ bool getFractalPixels(uint32_t offset, FractalInfo& f)
 
         double result = 0;
         if (f.type == FractalType::Mandelbrot)
-          result = mandelbrot::calculatePixel(v_x, v_y, f.smooth, f.maxIterations);
+          result =
+            mandelbrot::calculatePixel(v_x, v_y, f.smooth, f.maxIterations);
         else if (f.type == FractalType::Julia)
           result = 0;
         if (result == -1.0)
@@ -366,18 +350,7 @@ bool getFractalPixels(uint32_t offset, FractalInfo& f)
           else
           {
             result = normalizeIteration(result);
-            double gradient = result - (int)result;
-            int step = (int)result % f.palette->numColors;
-            int nextStep = (step + 1) % f.palette->numColors;
-            auto baseColor = f.palette->getColor(step);
-            auto nextColor = f.palette->getColor(nextStep);
-            // interpolate between baseColor and nextColor
-            auto newColor = Color{
-              (uint8_t)(baseColor.r + (nextColor.r - baseColor.r) * gradient),
-              (uint8_t)(baseColor.g + (nextColor.g - baseColor.g) * gradient),
-              (uint8_t)(baseColor.b + (nextColor.b - baseColor.b) * gradient),
-              255};
-            f.pGrid->setCellDirectly(y, x, newColor);
+            f.pGrid->setCellDirectly(y, x, f.palette->getColor(result));
           }
         }
       }
@@ -385,7 +358,4 @@ bool getFractalPixels(uint32_t offset, FractalInfo& f)
   }
   return true;
 }
-
-
-}
-
+} // namespace fractal
