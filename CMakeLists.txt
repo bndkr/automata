@@ -43,6 +43,8 @@ set(automata_srcs
   src/automata/Fractal.hpp
   src/automata/Gradient.cpp
   src/automata/Gradient.hpp
+  src/automata/Julia.cpp
+  src/automata/Julia.hpp
   src/automata/Mandelbrot.cpp
   src/automata/Mandelbrot.hpp
   src/automata/Palette.cpp

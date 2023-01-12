@@ -51,6 +51,8 @@ struct FractalInfo
   ImVec4 distanceColor;
   FractalType type;
   FractalBounds window;
+  float seedX;
+  float seedY;
 };
 
 namespace fractal

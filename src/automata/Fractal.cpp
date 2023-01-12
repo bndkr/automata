@@ -1,4 +1,5 @@
 #include "Fractal.hpp"
+#include "Julia.hpp"
 #include "Mandelbrot.hpp"
 
 #include "imgui/imgui.h"
@@ -7,9 +8,6 @@
 #include <d3d11.h>
 #include <future>
 #include <string>
-
-// non-optimized
-#include <complex>
 
 namespace
 {
@@ -42,7 +40,6 @@ void showAutomataWindow(ID3D11Device* pDevice)
   static Grid grid(1000, 500);
   static Smooth smooth = Smooth::Logarithmic;
   static uint32_t numThreads(std::thread::hardware_concurrency());
-  static uint32_t numColors = 120;
   static int numSteps = 100;
   static int numPaletteColors = 2;
   static Palette palette(initialColors, numSteps);
@@ -55,11 +52,13 @@ void showAutomataWindow(ID3D11Device* pDevice)
   static ImVec4 distanceColor = {1, 1, 1, 1};
   static FractalType type = FractalType::Mandelbrot;
   static FractalBounds window{-2.0, 2.0, -1.0, 1.0};
+  static float seedX = -1.0;
+  static float seedY = 0.0;
 
   static FractalInfo f{&grid,       smooth,     numThreads, &palette,
                        minDistance, iterations, imageSize,  &pView,
                        &pTexture,   pDevice,    setColor,   distanceColor,
-                       type,        window};
+                       type,        window,     seedX,      seedY};
 
   static bool displayRuleMenu = false;
 
@@ -73,15 +72,11 @@ void showAutomataWindow(ID3D11Device* pDevice)
                               "Distance Estimate"};
   static int smoothIdx = (int)smooth;
   static int numInterpolatedColors = 2;
-  const char* items[] = {"2", "3", "4"};
-  static int item_current = 0;
 
   static bool showPalette = true;
   ImGui::Checkbox("Show Palette", &showPalette);
 
   static std::vector<ImVec4> colors = {
-    {0.0, 0.0, 0.0, 1.0},
-    {1.0, 1.0, 1.0, 1.0},
     {0.0, 0.0, 0.0, 1.0},
     {1.0, 1.0, 1.0, 1.0},
   };
@@ -107,6 +102,15 @@ void showAutomataWindow(ID3D11Device* pDevice)
                      IM_ARRAYSIZE(smoothList)))
     {
       f.smooth = (Smooth)smoothIdx;
+      updateView = true;
+      f.pGrid->clear();
+    }
+
+    static int fractalIdx = 0;
+    static char* fractalTypes[2] = {"Mandelbrot", "Julia"};
+    if (ImGui::Combo("Fractal Type", &fractalIdx, fractalTypes, IM_ARRAYSIZE(fractalTypes)))
+    {
+      f.type = (FractalType)fractalIdx;
       updateView = true;
       f.pGrid->clear();
     }
@@ -150,26 +154,23 @@ void showAutomataWindow(ID3D11Device* pDevice)
         updateView = true;
       }
     }
-    else
+    else // smooth != Smooth::Distance
     {
-      if (ImGui::InputInt("Number of colors", &numPaletteColors, 1))
+      if (ImGui::Button("Add Color"))
       {
-        // we need to make sure the number of colors
-        // divides the number of steps
-        numSteps -= (numSteps % numPaletteColors);
-        if (numPaletteColors > colors.size())
+        colors.push_back(ImVec4{1.0f, 1.0f, 1.0f, 1.0f});
+        numPaletteColors++;
+        f.palette->updateColors(colors);
+        updateView = true;
+        f.pGrid->clear();
+      }
+      ImGui::SameLine();
+      if (ImGui::Button("Remove Color"))
+      {
+        if (colors.size() > 1)
         {
-          for (int i = 0; i < numPaletteColors - colors.size(); i++)
-          {
-            colors.push_back(ImVec4{1.0f, 1.0f, 1.0f, 1.0f});
-          }
-        }
-        if (numPaletteColors < colors.size())
-        {
-          for (int i = 0; i < colors.size() - numPaletteColors; i++)
-          {
-            colors.pop_back();
-          }
+          colors.pop_back();
+          numPaletteColors--;
         }
         f.palette->updateColors(colors);
         updateView = true;
@@ -197,6 +198,16 @@ void showAutomataWindow(ID3D11Device* pDevice)
       f.palette->updateSize(numSteps);
       updateView = true;
       f.pGrid->clear();
+    }
+
+    if (f.type == FractalType::Julia)
+    {
+      if (ImGui::DragFloat("Seed X", &f.seedX, 0.0005f, -2.0f, 2.0f) ||
+          ImGui::DragFloat("Seed Y", &f.seedY, 0.0005f, -2.0f, 2.0f))
+      {
+        updateView = true;
+        f.pGrid->clear();
+      }
     }
     ImGui::End();
   }
@@ -281,6 +292,13 @@ void showAutomataWindow(ID3D11Device* pDevice)
   {
     ImGui::Text("Screen space: x:%d, y:%d", mouseX, mouseY);
     ImGui::Text("Complex space: x:%f, y:%f", complexX, complexY);
+    ImGui::Text("Seed: (%f, %f)", f.seedX, f.seedY);
+    ImGui::Text("Value from function: %f",
+                (f.type == FractalType::Mandelbrot
+                   ? mandelbrot::calculatePixel(complexX, complexY, f.smooth,
+                                                f.maxIterations)
+                   : julia::calculatePixel(complexX, complexY, f.smooth,
+                                           f.maxIterations, f.seedX, f.seedY)));
   }
   ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
               1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
@@ -333,7 +351,8 @@ bool getFractalPixels(uint32_t offset, FractalInfo& f)
           result =
             mandelbrot::calculatePixel(v_x, v_y, f.smooth, f.maxIterations);
         else if (f.type == FractalType::Julia)
-          result = 0;
+          result = julia::calculatePixel(v_x, v_y, f.smooth, f.maxIterations,
+                                         f.seedX, f.seedY);
         if (result == -1.0)
         {
           f.pGrid->setCellDirectly(y, x, imvec4ToColor(f.setColor));
